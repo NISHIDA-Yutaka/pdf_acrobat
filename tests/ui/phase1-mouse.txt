@@ -1,0 +1,17 @@
+# Mouse interactions: internal link, drag selection, word / line selection.
+size 1400 900
+open ../../samples/basic.pdf
+layout-info
+# TOC entry "第3章 回転したページ" links to page 4.
+click 216 358
+state
+page 1
+drag 100 604 520 629
+copy-text
+screenshot ../../artifacts/p1-30-drag-select.png
+click 150 690 2
+copy-text
+click 150 690 3
+copy-text
+screenshot ../../artifacts/p1-31-line-select.png
+exit

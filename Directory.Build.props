@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Authors>Yutaka Nishida</Authors>
+    <Product>PDF Acrobat</Product>
+    <Version>0.1.0</Version>
+    <SatelliteResourceLanguages>ja;en</SatelliteResourceLanguages>
+    <!-- Keep warnings visible but do not fail local builds on them. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

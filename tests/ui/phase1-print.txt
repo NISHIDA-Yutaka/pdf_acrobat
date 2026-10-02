@@ -1,0 +1,6 @@
+open ../../samples/basic.pdf
+print-to-file ../../artifacts/printed.pdf
+open ../../artifacts/printed.pdf
+state
+screenshot ../../artifacts/p1-22-printed.png
+exit

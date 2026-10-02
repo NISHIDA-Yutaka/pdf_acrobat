@@ -1,0 +1,46 @@
+# Phase 1 smoke test: home screen, opening a document, panels, zoom, layouts, search.
+size 1400 900
+screenshot ../../artifacts/p1-01-home.png
+open ../../samples/basic.pdf
+state
+screenshot ../../artifacts/p1-02-open.png
+panel thumbnails
+zoom fit-page
+state
+screenshot ../../artifacts/p1-03-thumbs-fitpage.png
+layout two-continuous
+zoom fit-width
+state
+screenshot ../../artifacts/p1-04-two-page.png
+layout continuous
+page 4
+zoom 150
+state
+screenshot ../../artifacts/p1-05-rotated-page-150.png
+find ユニーク検索語
+state
+screenshot ../../artifacts/p1-06-search.png
+find the quick
+panel search
+screenshot ../../artifacts/p1-07-search-results.png
+rotate-view
+zoom fit-page
+screenshot ../../artifacts/p1-08-rotate-view.png
+rotate-view
+rotate-view
+rotate-view
+zoom 800
+page 6
+screenshot ../../artifacts/p1-09-zoom800-tiles.png
+theme dark
+zoom fit-width
+page 1
+panel bookmarks
+screenshot ../../artifacts/p1-10-dark.png
+select-all
+copy-text
+theme light
+dialog-screenshot properties ../../artifacts/p1-11-properties.png
+dialog-screenshot print ../../artifacts/p1-12-print.png
+dialog-screenshot password ../../artifacts/p1-13-password.png
+exit

@@ -1,0 +1,162 @@
+<ui:FluentWindow x:Class="PdfAcrobat.App.Views.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:vm="clr-namespace:PdfAcrobat.App.ViewModels"
+                 xmlns:views="clr-namespace:PdfAcrobat.App.Views"
+                 Title="{Binding WindowTitle}"
+                 Width="1360"
+                 Height="860"
+                 MinWidth="760"
+                 MinHeight="500"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="None"
+                 WindowCornerPreference="Round"
+                 WindowStartupLocation="CenterScreen"
+                 Background="{DynamicResource AppBackgroundBrush}"
+                 FontFamily="{StaticResource AppFontFamily}"
+                 AllowDrop="True">
+    <Window.InputBindings>
+        <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}" />
+        <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseActiveTabCommand}" />
+        <KeyBinding Gesture="Ctrl+F4" Command="{Binding CloseActiveTabCommand}" />
+        <KeyBinding Gesture="Ctrl+Tab" Command="{Binding NextTabCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+Tab" Command="{Binding PreviousTabCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding ActiveDocument.SaveAsCommand}" />
+        <KeyBinding Gesture="Ctrl+P" Command="{Binding ActiveDocument.PrintCommand}" />
+        <KeyBinding Gesture="Ctrl+D" Command="{Binding ActiveDocument.ShowPropertiesCommand}" />
+        <KeyBinding Gesture="Ctrl+F" Command="{Binding ActiveDocument.OpenFindBarCommand}" />
+        <KeyBinding Gesture="F3" Command="{Binding ActiveDocument.FindNextCommand}" />
+        <KeyBinding Gesture="Shift+F3" Command="{Binding ActiveDocument.FindPreviousCommand}" />
+        <KeyBinding Gesture="Ctrl+OemPlus" Command="{Binding ActiveDocument.ZoomInCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+OemPlus" Command="{Binding ActiveDocument.ZoomInCommand}" />
+        <KeyBinding Gesture="Ctrl+Add" Command="{Binding ActiveDocument.ZoomInCommand}" />
+        <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ActiveDocument.ZoomOutCommand}" />
+        <KeyBinding Gesture="Ctrl+Subtract" Command="{Binding ActiveDocument.ZoomOutCommand}" />
+        <KeyBinding Gesture="Ctrl+D0" Command="{Binding ActiveDocument.FitPageCommand}" />
+        <KeyBinding Gesture="Ctrl+D1" Command="{Binding ActiveDocument.ActualSizeCommand}" />
+        <KeyBinding Gesture="Ctrl+D2" Command="{Binding ActiveDocument.FitWidthCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+Add" Command="{Binding ActiveDocument.RotateViewClockwiseCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+Subtract" Command="{Binding ActiveDocument.RotateViewCounterClockwiseCommand}" />
+        <KeyBinding Gesture="Ctrl+L" Command="{Binding ActiveDocument.FullScreenCommand}" />
+        <KeyBinding Gesture="F4" Command="{Binding ActiveDocument.ShowPanelCommand}" CommandParameter="{x:Static vm:SidePanel.Thumbnails}" />
+        <KeyBinding Gesture="Shift+F4" Command="{Binding ActiveDocument.ToggleToolsPaneCommand}" />
+    </Window.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar x:Name="TitleBar"
+                     Grid.Row="0"
+                     Height="42"
+                     Padding="10,0,0,0"
+                     Background="{DynamicResource TitleBarBackgroundBrush}"
+                     CloseWindowByDoubleClickOnIcon="False">
+            <ui:TitleBar.Icon>
+                <ui:SymbolIcon Symbol="DocumentPdf24" Filled="True" FontSize="20" Foreground="{DynamicResource BrandBrush}" />
+            </ui:TitleBar.Icon>
+            <ui:TitleBar.Header>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Stretch">
+                    <TextBlock Text="PDF Acrobat"
+                               Margin="2,0,10,0"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <ListBox x:Name="TabStrip"
+                             ItemsSource="{Binding Tabs}"
+                             SelectedItem="{Binding SelectedTab}"
+                             ItemContainerStyle="{StaticResource DocumentTabItemStyle}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0"
+                             VerticalAlignment="Bottom"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             PreviewMouseUp="OnTabStripPreviewMouseUp">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.Resources>
+                            <DataTemplate DataType="{x:Type vm:HomeViewModel}">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,6,0">
+                                    <ui:SymbolIcon Symbol="Home24" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Title}" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="13" />
+                                </StackPanel>
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type vm:DocumentViewModel}">
+                                <StackPanel Orientation="Horizontal" ToolTip="{Binding ToolTip}">
+                                    <ui:SymbolIcon Symbol="DocumentPdf24" Filled="True" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource BrandBrush}" />
+                                    <TextBlock Text="{Binding Title}"
+                                               MaxWidth="170"
+                                               Margin="6,0,4,0"
+                                               VerticalAlignment="Center"
+                                               FontSize="13"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <Button Style="{StaticResource ToolButtonStyle}"
+                                            Width="22"
+                                            Height="22"
+                                            FontSize="12"
+                                            ToolTip="閉じる (Ctrl+W)"
+                                            Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}">
+                                        <ui:SymbolIcon Symbol="Dismiss16" />
+                                    </Button>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.Resources>
+                    </ListBox>
+                    <Button Style="{StaticResource ToolButtonStyle}"
+                            Width="30"
+                            Height="30"
+                            Margin="2,6,0,0"
+                            FontSize="16"
+                            VerticalAlignment="Center"
+                            ToolTip="ファイルを開く (Ctrl+O)"
+                            Command="{Binding OpenFileCommand}">
+                        <ui:SymbolIcon Symbol="Add24" />
+                    </Button>
+                </StackPanel>
+            </ui:TitleBar.Header>
+            <ui:TitleBar.TrailingContent>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                    <Button Style="{StaticResource ToolButtonStyle}"
+                            Width="32"
+                            Height="32"
+                            FontSize="16"
+                            ToolTip="ライト / ダーク テーマを切り替え"
+                            Command="{Binding ToggleThemeCommand}">
+                        <ui:SymbolIcon Symbol="DarkTheme24" />
+                    </Button>
+                </StackPanel>
+            </ui:TitleBar.TrailingContent>
+        </ui:TitleBar>
+
+        <!-- One view per tab, kept alive so each document keeps its scroll position. -->
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Tabs}" Focusable="False">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Grid />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.Resources>
+                <DataTemplate DataType="{x:Type vm:HomeViewModel}">
+                    <views:HomeView />
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type vm:DocumentViewModel}">
+                    <views:DocumentView />
+                </DataTemplate>
+            </ItemsControl.Resources>
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                    <Setter Property="Visibility" Value="{Binding IsSelected, Converter={StaticResource BoolToVisibleHidden}}" />
+                </Style>
+            </ItemsControl.ItemContainerStyle>
+        </ItemsControl>
+    </Grid>
+</ui:FluentWindow>

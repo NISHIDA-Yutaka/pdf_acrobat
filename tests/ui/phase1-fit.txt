@@ -1,0 +1,10 @@
+size 1400 900
+open ../../samples/basic.pdf
+state
+screenshot ../../artifacts/p1-20-open-fit.png
+layout two-continuous
+zoom fit-width
+page 3
+state
+screenshot ../../artifacts/p1-21-two-page.png
+exit

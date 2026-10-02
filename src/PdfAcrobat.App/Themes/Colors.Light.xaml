@@ -1,0 +1,29 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- App-specific surfaces (light). Keys must match Colors.Dark.xaml. -->
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F3F3F3" />
+    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#EBEBEB" />
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="PanelBorderBrush" Color="#E1E1E1" />
+    <SolidColorBrush x:Key="PanelHeaderForegroundBrush" Color="#505050" />
+    <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#E6E6E6" />
+    <SolidColorBrush x:Key="TabActiveBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TabHoverBackgroundBrush" Color="#DEDEDE" />
+    <SolidColorBrush x:Key="ToolHoverBackgroundBrush" Color="#EDEDED" />
+    <SolidColorBrush x:Key="ToolCheckedBackgroundBrush" Color="#DCE8FA" />
+    <SolidColorBrush x:Key="ToolCheckedForegroundBrush" Color="#0B5CC5" />
+    <SolidColorBrush x:Key="FloatingBarBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="FloatingBarBorderBrush" Color="#D6D6D6" />
+    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#6E6E6E" />
+    <SolidColorBrush x:Key="BrandBrush" Color="#E1251B" />
+    <SolidColorBrush x:Key="PrimaryButtonBrush" Color="#1473E6" />
+    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#0D66D0" />
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="CardHoverBrush" Color="#F7F9FC" />
+    <SolidColorBrush x:Key="DropZoneBorderBrush" Color="#B3B3B3" />
+    <SolidColorBrush x:Key="SelectionHighlightBrush" Color="#4D3390FF" />
+    <SolidColorBrush x:Key="SearchHitBrush" Color="#66FFD400" />
+    <SolidColorBrush x:Key="CurrentSearchHitBrush" Color="#88FF7A00" />
+    <SolidColorBrush x:Key="ThumbnailSelectedBorderBrush" Color="#1473E6" />
+    <Color x:Key="PageShadowColor">#30000000</Color>
+</ResourceDictionary>

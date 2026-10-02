@@ -1,0 +1,20 @@
+# Large document, encrypted document and the recent files list.
+size 1400 900
+open ../../samples/large.pdf
+state
+page 600
+state
+panel thumbnails
+screenshot ../../artifacts/p1-40-large-600.png
+find 1150-30:
+state
+layout two-continuous
+zoom 25
+page 1199
+screenshot ../../artifacts/p1-41-large-overview.png
+open ../../samples/encrypted.pdf test
+state
+open ../../samples/encrypted.pdf wrong
+home
+screenshot ../../artifacts/p1-42-home-recent.png
+exit

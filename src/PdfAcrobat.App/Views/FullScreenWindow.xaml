@@ -1,0 +1,37 @@
+<Window x:Class="PdfAcrobat.App.Views.FullScreenWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:viewer="clr-namespace:PdfAcrobat.App.Controls.Viewer"
+        Title="フルスクリーン"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        WindowState="Maximized"
+        ShowInTaskbar="False"
+        Background="Black"
+        FontFamily="{StaticResource AppFontFamily}">
+    <Grid>
+        <viewer:PdfViewer x:Name="Viewer"
+                          Background="Black"
+                          LayoutMode="SinglePage"
+                          ZoomMode="FitPage" />
+        <Border x:Name="Hint"
+                Margin="0,0,24,20"
+                Padding="12,6"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Background="#B0000000"
+                CornerRadius="6"
+                IsHitTestVisible="False">
+            <TextBlock Foreground="White" FontSize="12" Text="Esc キーでフルスクリーンを終了 ・ クリックまたは → で次のページ" />
+            <Border.Triggers>
+                <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" BeginTime="0:0:3" Duration="0:0:0.8" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Border.Triggers>
+        </Border>
+    </Grid>
+</Window>

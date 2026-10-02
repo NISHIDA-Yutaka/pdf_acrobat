@@ -1,0 +1,232 @@
+<UserControl x:Class="PdfAcrobat.App.Views.HomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             x:Name="Root"
+             Background="{DynamicResource AppBackgroundBrush}">
+    <UserControl.Resources>
+        <Style x:Key="CardButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{DynamicResource CardBackgroundBrush}"
+                                BorderBrush="{DynamicResource PanelBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource CardHoverBrush}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource PrimaryButtonBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RecentRowStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root" Background="Transparent" CornerRadius="6" Padding="10,6">
+                            <ContentPresenter HorizontalAlignment="Stretch" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource ToolHoverBackgroundBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel MaxWidth="1080" Margin="40,28,40,40">
+            <TextBlock Text="ようこそ" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+            <TextBlock Margin="0,4,0,20"
+                       FontSize="13"
+                       Foreground="{DynamicResource MutedForegroundBrush}"
+                       Text="PDF を開いて閲覧・検索・印刷できます。ツールは順次追加していきます。" />
+
+            <!-- Open / drop zone -->
+            <Grid MinHeight="168">
+                <Rectangle RadiusX="12"
+                           RadiusY="12"
+                           Fill="{DynamicResource CardBackgroundBrush}"
+                           Stroke="{DynamicResource DropZoneBorderBrush}"
+                           StrokeThickness="1.5"
+                           StrokeDashArray="5 4" />
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                    <ui:SymbolIcon Symbol="DocumentPdf24" Filled="True" FontSize="44" HorizontalAlignment="Center" Foreground="{DynamicResource BrandBrush}" />
+                    <TextBlock Margin="0,10,0,4"
+                               HorizontalAlignment="Center"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                               Text="ファイルを開く" />
+                    <TextBlock HorizontalAlignment="Center"
+                               FontSize="12"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
+                               Text="PDF ファイルをここにドラッグ＆ドロップするか、ボタンから選択します。" />
+                    <Button Margin="0,14,0,0"
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Command="{Binding OpenFileCommand}"
+                            Content="ファイルを選択" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Tools -->
+            <TextBlock Margin="0,28,0,10" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Text="おすすめのツール" />
+            <ItemsControl ItemsSource="{Binding Tools}" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="4" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Margin="0,0,10,10"
+                                Padding="14,12"
+                                Style="{StaticResource CardButtonStyle}"
+                                Command="{Binding DataContext.RunToolCommand, ElementName=Root}"
+                                CommandParameter="{Binding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Width="40"
+                                        Height="40"
+                                        CornerRadius="8"
+                                        VerticalAlignment="Top"
+                                        Background="{Binding Accent}">
+                                    <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               Text="{Binding Description}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               FontStyle="Italic"
+                                               Text="{Binding StatusText}"
+                                               Visibility="{Binding IsAvailable, Converter={StaticResource InverseBoolToVisibility}}" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Recent files -->
+            <DockPanel Margin="0,24,0,8">
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource TextToolButtonStyle}"
+                        Command="{Binding ClearRecentCommand}"
+                        Visibility="{Binding HasRecentFiles, Converter={StaticResource BoolToVisibility}}"
+                        Content="一覧をクリア" />
+                <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Text="最近使用したファイル" VerticalAlignment="Center" />
+            </DockPanel>
+            <Border Background="{DynamicResource CardBackgroundBrush}"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="6">
+                <Grid>
+                    <TextBlock Margin="12,18"
+                               FontSize="13"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
+                               Text="最近使用したファイルはありません。"
+                               Visibility="{Binding HasRecentFiles, Converter={StaticResource InverseBoolToVisibility}}" />
+                    <StackPanel Visibility="{Binding HasRecentFiles, Converter={StaticResource BoolToVisibility}}">
+                        <Grid Margin="10,6,10,4" TextElement.Foreground="{DynamicResource MutedForegroundBrush}" TextElement.FontSize="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="52" />
+                                <ColumnDefinition Width="3*" />
+                                <ColumnDefinition Width="140" />
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="80" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="1" Text="名前" />
+                            <TextBlock Grid.Column="2" Text="最終使用日時" />
+                            <TextBlock Grid.Column="3" Text="ページ数" />
+                            <TextBlock Grid.Column="4" Text="サイズ" />
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding RecentFiles}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource RecentRowStyle}"
+                                            Command="{Binding DataContext.OpenRecentCommand, ElementName=Root}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip="{Binding File.Path}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="開く"
+                                                          Command="{Binding PlacementTarget.Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="一覧から削除"
+                                                          Command="{Binding PlacementTarget.Tag.RemoveRecentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                        <Button.Tag>
+                                            <Binding Path="DataContext" ElementName="Root" />
+                                        </Button.Tag>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="52" />
+                                                <ColumnDefinition Width="3*" />
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="90" />
+                                                <ColumnDefinition Width="80" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="34"
+                                                    Height="44"
+                                                    HorizontalAlignment="Left"
+                                                    Background="White"
+                                                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="2">
+                                                <Grid>
+                                                    <ui:SymbolIcon Symbol="DocumentPdf24" Filled="True" FontSize="18" Foreground="{DynamicResource BrandBrush}"
+                                                                   Visibility="{Binding Thumbnail, Converter={StaticResource NullToCollapsed}}" />
+                                                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{DynamicResource MutedForegroundBrush}" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="12" Text="{Binding LastOpenedText}" />
+                                            <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="12" Text="{Binding PagesText}" />
+                                            <TextBlock Grid.Column="4" VerticalAlignment="Center" FontSize="12" Text="{Binding SizeText}" />
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

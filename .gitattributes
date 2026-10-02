@@ -1,0 +1,8 @@
+# Normalize text files; Windows tooling (Visual Studio) expects CRLF in the working tree.
+* text=auto eol=crlf
+
+*.pdf binary
+*.png binary
+*.ico binary
+*.ttf binary
+*.ttc binary
