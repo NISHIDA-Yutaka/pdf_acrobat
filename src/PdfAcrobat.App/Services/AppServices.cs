@@ -1,3 +1,4 @@
+using System.IO;
 using PdfAcrobat.App.Controls.Viewer;
 using PdfAcrobat.Core.Text;
 
@@ -11,6 +12,8 @@ public static class AppServices
     private static PageTextCache? _text;
     private static PageInfoCache? _pageInfo;
     private static DialogService? _dialogs;
+    private static AutoSaveService? _autoSave;
+    private static string? _dataFolder;
 
     public static SettingsService Settings => _settings ??= new SettingsService();
 
@@ -22,8 +25,21 @@ public static class AppServices
 
     public static DialogService Dialogs => _dialogs ??= new DialogService();
 
-    /// <summary>Overrides the settings location (used by automation runs so they do not touch user settings).</summary>
-    public static void UseSettingsFolder(string folder) => _settings = new SettingsService(folder);
+    public static AutoSaveService AutoSave => _autoSave ??= new AutoSaveService(Path.Combine(_dataFolder ?? AppInfo.LocalDataFolder, "AutoSave"));
 
-    public static void Shutdown() => _render?.Dispose();
+    /// <summary>
+    /// Overrides the settings location (used by automation runs so they do not touch user settings).
+    /// Auto-save data goes there too.
+    /// </summary>
+    public static void UseSettingsFolder(string folder)
+    {
+        _settings = new SettingsService(folder);
+        _dataFolder = Path.GetFullPath(folder);
+    }
+
+    public static void Shutdown()
+    {
+        _autoSave?.Dispose();
+        _render?.Dispose();
+    }
 }

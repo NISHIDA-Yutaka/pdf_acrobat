@@ -1,0 +1,184 @@
+<ui:FluentWindow x:Class="PdfAcrobat.App.Views.Dialogs.CreatePdfWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:vm="clr-namespace:PdfAcrobat.App.ViewModels"
+                 Title="PDF を作成"
+                 Width="780"
+                 Height="520"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False"
+                 WindowStartupLocation="CenterOwner"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="None"
+                 Background="{DynamicResource PanelBackgroundBrush}"
+                 FontFamily="{StaticResource AppFontFamily}">
+    <ui:FluentWindow.Resources>
+        <Style x:Key="KindButtonStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="GroupName" Value="Kind" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Root" Margin="0,1" Padding="10,9" Background="Transparent" CornerRadius="6">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource ToolHoverBackgroundBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource ToolCheckedBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ToolCheckedForegroundBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <ui:TitleBar Title="PDF を作成" ShowMaximize="False" ShowMinimize="False" />
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="230" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Kinds -->
+            <Border Background="{DynamicResource AppBackgroundBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="0,1,1,0">
+                <StackPanel Margin="8,10">
+                    <RadioButton x:Name="BlankKind" Style="{StaticResource KindButtonStyle}" IsChecked="True" Checked="OnKindChanged">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="DocumentAdd24" FontSize="18" />
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="空白ページ" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="ImagesKind" Style="{StaticResource KindButtonStyle}" Checked="OnKindChanged">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Image24" FontSize="18" />
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="画像から" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="ClipboardKind" Style="{StaticResource KindButtonStyle}" Checked="OnKindChanged">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="ClipboardPaste24" FontSize="18" />
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="クリップボードから" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="CombineKind" Style="{StaticResource KindButtonStyle}" Checked="OnKindChanged">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Merge24" FontSize="18" />
+                            <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="複数のファイルから" />
+                        </StackPanel>
+                    </RadioButton>
+                    <Border Height="1" Margin="6,8" Background="{DynamicResource PanelBorderBrush}" />
+                    <RadioButton Style="{StaticResource KindButtonStyle}" IsEnabled="False">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="DocumentText24" FontSize="18" />
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="Office ファイル・Web ページ" />
+                                <TextBlock FontSize="10.5" Text="Phase 6 で対応予定" />
+                            </StackPanel>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource KindButtonStyle}" IsEnabled="False">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Scan24" FontSize="18" />
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="スキャナー" />
+                                <TextBlock FontSize="10.5" Text="Phase 7 で対応予定" />
+                            </StackPanel>
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+            </Border>
+
+            <!-- Options -->
+            <Grid Grid.Column="1" Margin="28,18,28,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="KindTitle" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock x:Name="KindDescription" Margin="0,6,0,0" Style="{StaticResource MutedTextStyle}" FontSize="13" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <Grid Grid.Row="1" Margin="0,18,0,0">
+                    <!-- Blank pages -->
+                    <Grid x:Name="BlankPanel">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock VerticalAlignment="Center" Text="用紙サイズ" />
+                        <ComboBox x:Name="PaperBox" Grid.Column="1" Margin="0,4" ItemsSource="{x:Static vm:PaperSize.Common}" SelectedIndex="0" />
+                        <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="向き" />
+                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,6" Orientation="Horizontal">
+                            <RadioButton x:Name="PortraitRadio" GroupName="Orientation" Content="縦" IsChecked="True" />
+                            <RadioButton Margin="16,0,0,0" GroupName="Orientation" Content="横" />
+                        </StackPanel>
+                        <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="ページ数" />
+                        <TextBox x:Name="PageCountBox" Grid.Row="2" Grid.Column="1" Width="90" Margin="0,4" HorizontalAlignment="Left" Text="1" />
+                    </Grid>
+
+                    <!-- Images -->
+                    <StackPanel x:Name="ImagesPanel" Visibility="Collapsed">
+                        <TextBlock TextWrapping="Wrap" Text="対応形式: JPEG / PNG / BMP / GIF / TIFF（複数ページ）/ HEIC / WebP" />
+                        <TextBlock Margin="0,8,0,0" Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap"
+                                   Text="選択した順に 1 画像 1 ページで並べます。ページの大きさは画像の解像度から決まります。HEIC / WebP は Windows の拡張機能（コーデック）が必要です。" />
+                    </StackPanel>
+
+                    <!-- Clipboard -->
+                    <StackPanel x:Name="ClipboardPanel" Visibility="Collapsed">
+                        <TextBlock x:Name="ClipboardStatus" TextWrapping="Wrap" />
+                        <Border x:Name="ClipboardPreviewFrame"
+                                Margin="0,12,0,0"
+                                HorizontalAlignment="Left"
+                                Background="White"
+                                BorderBrush="{DynamicResource PanelBorderBrush}"
+                                BorderThickness="1"
+                                Visibility="Collapsed">
+                            <Image x:Name="ClipboardPreview" MaxWidth="320" MaxHeight="180" Stretch="Uniform" />
+                        </Border>
+                        <TextBox x:Name="ClipboardText"
+                                 Margin="0,12,0,0"
+                                 Height="150"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Visibility="Collapsed" />
+                    </StackPanel>
+
+                    <!-- Combine -->
+                    <StackPanel x:Name="CombinePanel" Visibility="Collapsed">
+                        <TextBlock TextWrapping="Wrap" Text="［ファイルを結合］ツールを開きます。複数の PDF や画像を好きな順に並べて 1 つの PDF にまとめられます。" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Grid.Row="2" HorizontalAlignment="Right" Orientation="Horizontal">
+                    <ui:Button x:Name="CreateButton" Width="110" Appearance="Primary" Content="作成" IsDefault="True" Click="OnCreate" />
+                    <ui:Button Width="110" Margin="8,0,0,0" Content="キャンセル" IsCancel="True" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</ui:FluentWindow>

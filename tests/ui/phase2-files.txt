@@ -1,0 +1,38 @@
+# Phase 2: extract, split, combine, create (blank / images / text) and the related dialogs.
+size 1400 900
+open ../../samples/basic.pdf
+dialog-screenshot extract ../../artifacts/p2f-01-extract-dialog.png
+dialog-screenshot split ../../artifacts/p2f-02-split-dialog.png
+dialog-screenshot replace ../../artifacts/p2f-03-replace-dialog.png
+dialog-screenshot create ../../artifacts/p2f-04-create-dialog.png
+dialog-screenshot combine ../../artifacts/p2f-05-combine-dialog.png ../../samples/basic.pdf ../../samples/large.pdf ../../docs/images/viewer.png
+extract 2-3
+pages
+screenshot ../../artifacts/p2f-06-extracted.png
+close-tab
+split pages 2 ../../artifacts/split basic
+split ranges 1-2,3-6 ../../artifacts/split ranges
+split bookmarks 0 ../../artifacts/split bookmarks
+open ../../artifacts/split/ranges_02.pdf
+pages
+close-tab
+combine bookmarks ../../samples/basic.pdf ../../docs/images/viewer.png ../../samples/basic.pdf
+panel bookmarks
+screenshot ../../artifacts/p2f-07-combined.png
+save-as ../../artifacts/p2f-combined.pdf
+close-tab
+create-blank 0 3
+organize on
+screenshot ../../artifacts/p2f-08-blank-a4.png
+close-tab
+create-blank 6 1 landscape
+pages
+close-tab
+create-images ../../docs/images/viewer.png
+screenshot ../../artifacts/p2f-09-from-image.png
+close-tab
+create-text ../../README.md
+zoom fit-page
+screenshot ../../artifacts/p2f-10-from-text.png
+save-as ../../artifacts/p2f-text.pdf
+exit

@@ -60,7 +60,7 @@
             <TextBlock Margin="0,4,0,20"
                        FontSize="13"
                        Foreground="{DynamicResource MutedForegroundBrush}"
-                       Text="PDF を開いて閲覧・検索・印刷できます。ツールは順次追加していきます。" />
+                       Text="PDF の閲覧・検索・印刷に加えて、ページの整理（回転・削除・並べ替え・挿入・抽出・分割）、ファイルの結合、PDF の作成ができます。" />
 
             <!-- Open / drop zone -->
             <Grid MinHeight="168">
@@ -81,7 +81,7 @@
                     <TextBlock HorizontalAlignment="Center"
                                FontSize="12"
                                Foreground="{DynamicResource MutedForegroundBrush}"
-                               Text="PDF ファイルをここにドラッグ＆ドロップするか、ボタンから選択します。" />
+                               Text="PDF ファイルをここにドラッグ＆ドロップするか、ボタンから選択します（画像をドロップすると PDF に変換します）。" />
                     <Button Margin="0,14,0,0"
                             HorizontalAlignment="Center"
                             Style="{StaticResource PrimaryButtonStyle}"

@@ -83,6 +83,17 @@ public sealed class DialogService
         return MessageBox.Show(Owner!, message, $"{title} - {AppInfo.DisplayName}", MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
     }
 
+    public bool AskYesNo(string message, string title = "確認")
+    {
+        if (AutomationLog is { } log)
+        {
+            log($"[yes/no dialog -> no] {message}");
+            return false;
+        }
+
+        return MessageBox.Show(Owner!, message, $"{title} - {AppInfo.DisplayName}", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+    }
+
     /// <summary>Yes / No / Cancel. Returns null for cancel.</summary>
     public bool? AskYesNoCancel(string message, string title = "確認")
     {

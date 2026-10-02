@@ -39,6 +39,10 @@ public sealed partial class ThumbnailItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsCurrent { get; set; }
 
+    /// <summary>Part of the page selection (shared with the page grid).</summary>
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
+
     public void EnsureImage(double dpiScale)
     {
         if (Image is not null || _cts is not null || Page.IsBlank)

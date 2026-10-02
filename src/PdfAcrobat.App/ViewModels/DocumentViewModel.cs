@@ -180,7 +180,8 @@ public sealed partial class DocumentViewModel : TabViewModel, IDisposable
         }
     }
 
-    public ObservableCollection<ThumbnailItemViewModel> Thumbnails { get; } = new();
+    [ObservableProperty]
+    public partial ObservableCollection<ThumbnailItemViewModel> Thumbnails { get; private set; } = new();
 
     public ObservableCollection<BookmarkItemViewModel> Bookmarks { get; }
 
@@ -206,6 +207,12 @@ public sealed partial class DocumentViewModel : TabViewModel, IDisposable
         NextPageCommand.NotifyCanExecuteChanged();
         FirstPageCommand.NotifyCanExecuteChanged();
         LastPageCommand.NotifyCanExecuteChanged();
+
+        // In the viewer a page selection is only meaningful while it includes the page being viewed.
+        if (!IsOrganizeMode && SelectedPages.Count > 0 && !SelectedPages.Contains(newValue))
+        {
+            SelectedPages = [];
+        }
     }
 
     partial void OnIsToolsPaneOpenChanged(bool value)
@@ -235,21 +242,38 @@ public sealed partial class DocumentViewModel : TabViewModel, IDisposable
         _pageLabels = labels;
     }
 
+    /// <summary>Rebuilds the thumbnail list, reusing items whose page did not change (they keep their image).</summary>
     private void RebuildThumbnails()
     {
-        foreach (var t in Thumbnails)
-        {
-            t.CancelPending();
-        }
-
-        Thumbnails.Clear();
+        var old = Thumbnails;
         var primary = Session.PrimarySource.Id;
+        var selected = SelectedPages.ToHashSet();
+        var items = new List<ThumbnailItemViewModel>(Session.Pages.Count);
         for (var i = 0; i < Session.Pages.Count; i++)
         {
             var page = Session.Pages[i];
+            if (i < old.Count && ReferenceEquals(old[i].Page, page))
+            {
+                old[i].IsCurrent = i == CurrentPageIndex;
+                old[i].IsSelected = selected.Contains(i);
+                items.Add(old[i]);
+                continue;
+            }
+
             var label = page.SourceId == primary && _pageLabels is { } labels && page.SourceIndex < labels.Length ? labels[page.SourceIndex] : null;
-            Thumbnails.Add(new ThumbnailItemViewModel(Session, i, page, label) { IsCurrent = i == CurrentPageIndex });
+            items.Add(new ThumbnailItemViewModel(Session, i, page, label) { IsCurrent = i == CurrentPageIndex, IsSelected = selected.Contains(i) });
         }
+
+        var kept = items.ToHashSet();
+        foreach (var t in old)
+        {
+            if (!kept.Contains(t))
+            {
+                t.CancelPending();
+            }
+        }
+
+        Thumbnails = new ObservableCollection<ThumbnailItemViewModel>(items);
     }
 
     private void OnSessionChanged(object? sender, DocumentChangedEventArgs e)
@@ -258,10 +282,20 @@ public sealed partial class DocumentViewModel : TabViewModel, IDisposable
         OnPropertyChanged(nameof(PageCount));
         if (!ReferenceEquals(e.OldState.Pages, e.NewState.Pages))
         {
+            // Keep the selection valid after pages were removed (undo/redo may shrink the document).
+            SelectedPages = SelectedPages.Where(i => i < PageCount).ToList();
+            if (CurrentPageIndex >= PageCount)
+            {
+                CurrentPageIndex = PageCount - 1;
+            }
+
             RebuildThumbnails();
             ClearSearch();
         }
 
+        OnHistoryChanged();
+        NextPageCommand.NotifyCanExecuteChanged();
+        LastPageCommand.NotifyCanExecuteChanged();
         _main.OnDocumentTitleChanged(this);
     }
 
@@ -626,28 +660,6 @@ public sealed partial class DocumentViewModel : TabViewModel, IDisposable
     // ---- File commands -----------------------------------------------------------------
 
     [RelayCommand]
-    private void SaveAs()
-    {
-        var suggested = Path.GetFileName(Session.FilePath ?? Session.DisplayName);
-        var path = AppServices.Dialogs.PickSavePath(suggested);
-        if (path is null)
-        {
-            return;
-        }
-
-        try
-        {
-            File.WriteAllBytes(path, Session.PrimarySource.Bytes);
-            Session.MarkSaved(path);
-            AppServices.Settings.AddRecentFile(path, PageCount, null);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            AppServices.Dialogs.ShowError($"保存できませんでした。\n{ex.Message}");
-        }
-    }
-
-    [RelayCommand]
     private void ShowProperties() => _main.ShowDocumentProperties(this);
 
     [RelayCommand]
@@ -657,7 +669,7 @@ public sealed partial class DocumentViewModel : TabViewModel, IDisposable
     private void FullScreen() => _main.ShowFullScreen(this);
 
     [RelayCommand]
-    private void Close() => _main.CloseTab(this);
+    private Task Close() => _main.CloseTab(this);
 
     public void Dispose()
     {
@@ -668,7 +680,7 @@ public sealed partial class DocumentViewModel : TabViewModel, IDisposable
             t.CancelPending();
         }
 
-        foreach (var source in Session.Sources.Values)
+        foreach (var source in Session.Sources)
         {
             AppServices.Render.ClearSource(source.Id);
         }

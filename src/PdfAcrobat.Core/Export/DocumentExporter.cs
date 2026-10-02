@@ -4,7 +4,31 @@ using PdfAcrobat.Pdfium;
 namespace PdfAcrobat.Core.Export;
 
 /// <summary>A bookmark added while exporting (e.g. one per file when combining).</summary>
-public sealed record ExportBookmark(string Title, int PageIndex);
+public sealed record ExportBookmark(string Title, int PageIndex)
+{
+    public IReadOnlyList<ExportBookmark> Children { get; init; } = [];
+
+    /// <summary>Position on the page in PDF user space; null shows the whole page.</summary>
+    public double? X { get; init; }
+
+    public double? Y { get; init; }
+
+    /// <summary>Whether the children are shown expanded.</summary>
+    public bool IsOpen { get; init; }
+
+    /// <summary>Converts a document outline, shifting its pages by <paramref name="pageOffset"/>.</summary>
+    public static IReadOnlyList<ExportBookmark> FromOutline(IEnumerable<PdfBookmark> outline, int pageOffset, int pageCount) =>
+        outline.Select(b => new ExportBookmark(
+                string.IsNullOrWhiteSpace(b.Title) ? "(無題)" : b.Title.Trim(),
+                pageOffset + (b.Destination is { PageIndex: >= 0 } d && d.PageIndex < pageCount ? d.PageIndex : 0))
+            {
+                X = b.Destination?.X,
+                Y = b.Destination?.Y,
+                IsOpen = b.IsOpen,
+                Children = FromOutline(b.Children, pageOffset, pageCount),
+            })
+            .ToList();
+}
 
 public sealed record ExportOptions
 {
@@ -20,6 +44,9 @@ public sealed record ExportOptions
     /// <summary>Top-level bookmarks to append.</summary>
     public IReadOnlyList<ExportBookmark> Bookmarks { get; init; } = [];
 
+    /// <summary>Drop the document's own bookmarks so that <see cref="Bookmarks"/> becomes the whole outline.</summary>
+    public bool ReplaceBookmarks { get; init; }
+
     public string? Title { get; init; }
 }
 
@@ -30,18 +57,23 @@ public sealed record ExportOptions
 /// </summary>
 public static class DocumentExporter
 {
+    /// <remarks>
+    /// Safe to call on a background thread while the user keeps editing: the page list is read once
+    /// (states are immutable) and sources are never modified.
+    /// </remarks>
     public static byte[] Export(DocumentSession session, ExportOptions? options = null)
     {
         options ??= new ExportOptions();
-        var pages = (options.PageIndices ?? Enumerable.Range(0, session.Pages.Count).ToList())
-            .Select(i => session.Pages[i])
+        var snapshot = session.Pages;
+        var pages = (options.PageIndices ?? Enumerable.Range(0, snapshot.Count).ToList())
+            .Select(i => snapshot[i])
             .ToList();
         if (pages.Count == 0)
         {
             throw new InvalidOperationException("書き出すページがありません。");
         }
 
-        if (options.PageIndices is null && options.Bookmarks.Count == 0 && options.Title is null && IsUnchanged(session, pages))
+        if (options.PageIndices is null && options.Bookmarks.Count == 0 && !options.ReplaceBookmarks && options.Title is null && IsUnchanged(session, pages))
         {
             return session.PrimarySource.Bytes;
         }
@@ -49,7 +81,7 @@ public static class DocumentExporter
         var assembled = options.PreserveDocumentStructure
             ? AssembleOnPrimary(session, pages)
             : AssembleFresh(session, pages);
-        return PdfFinalizer.Finalize(assembled, new FinalizeOptions(options.Bookmarks, options.Title));
+        return PdfFinalizer.Finalize(assembled, new FinalizeOptions(options.Bookmarks, options.Title, options.ReplaceBookmarks));
     }
 
     /// <summary>True when the pages are exactly the primary file's pages in their original state.</summary>

@@ -4,6 +4,7 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:vm="clr-namespace:PdfAcrobat.App.ViewModels"
              xmlns:viewer="clr-namespace:PdfAcrobat.App.Controls.Viewer"
+             xmlns:grid="clr-namespace:PdfAcrobat.App.Controls.PageGrid"
              x:Name="Root"
              Background="{DynamicResource AppBackgroundBrush}">
     <UserControl.Resources>
@@ -32,17 +33,20 @@
                         <ui:SymbolIcon Symbol="PanelLeft24" />
                     </ToggleButton>
                     <Border Style="{StaticResource ToolbarSeparatorStyle}" />
-                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding SaveAsCommand}" ToolTip="名前を付けて保存 (Ctrl+Shift+S)">
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding SaveCommand}" ToolTip="保存 (Ctrl+S)">
                         <ui:SymbolIcon Symbol="Save24" />
+                    </Button>
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding SaveAsCommand}" ToolTip="名前を付けて保存 (Ctrl+Shift+S)">
+                        <ui:SymbolIcon Symbol="SaveEdit24" />
                     </Button>
                     <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding PrintCommand}" ToolTip="印刷 (Ctrl+P)">
                         <ui:SymbolIcon Symbol="Print24" />
                     </Button>
                     <Border Style="{StaticResource ToolbarSeparatorStyle}" />
-                    <Button Style="{StaticResource ToolButtonStyle}" IsEnabled="False" ToolTip="元に戻す (Ctrl+Z) — Phase 2 で対応">
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding UndoCommand}" ToolTip="{Binding UndoToolTip}" ToolTipService.ShowOnDisabled="True">
                         <ui:SymbolIcon Symbol="ArrowUndo24" />
                     </Button>
-                    <Button Style="{StaticResource ToolButtonStyle}" IsEnabled="False" ToolTip="やり直し (Ctrl+Y) — Phase 2 で対応">
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding RedoCommand}" ToolTip="{Binding RedoToolTip}" ToolTipService.ShowOnDisabled="True">
                         <ui:SymbolIcon Symbol="ArrowRedo24" />
                     </Button>
                     <Border Style="{StaticResource ToolbarSeparatorStyle}" />
@@ -52,6 +56,13 @@
                     <RadioButton Style="{StaticResource ToolRadioButtonStyle}" GroupName="Tool" IsChecked="{Binding IsHandTool}" ToolTip="手のひらツール (Space キーを押している間も有効)">
                         <ui:SymbolIcon Symbol="HandLeft24" />
                     </RadioButton>
+                    <Border Style="{StaticResource ToolbarSeparatorStyle}" />
+                    <ToggleButton Style="{StaticResource TextToolToggleButtonStyle}" IsChecked="{Binding IsOrganizeMode}" ToolTip="ページの回転・削除・並べ替え・挿入・抽出など">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="DocumentMultiple24" FontSize="18" />
+                            <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="ページを整理" />
+                        </StackPanel>
+                    </ToggleButton>
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -143,134 +154,249 @@
                 </DockPanel>
             </Border>
 
-            <!-- Viewer with floating bars -->
+            <!-- Center: viewer or page grid -->
             <Grid Grid.Column="1">
-                <viewer:PdfViewer x:Name="Viewer"
-                                  Session="{Binding Session}"
-                                  Zoom="{Binding Zoom}"
-                                  ZoomMode="{Binding ZoomMode}"
-                                  LayoutMode="{Binding LayoutMode}"
-                                  CoverPage="{Binding CoverPage}"
-                                  ViewRotation="{Binding ViewRotation}"
-                                  CurrentPageIndex="{Binding CurrentPageIndex}"
-                                  Tool="{Binding Tool}"
-                                  SearchHits="{Binding SearchHits}"
-                                  CurrentSearchHit="{Binding CurrentSearchHit}" />
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-                <!-- Find bar -->
-                <Border Style="{StaticResource FloatingBarStyle}"
-                        Margin="0,10,26,0"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
-                        Visibility="{Binding IsFindBarOpen, Converter={StaticResource BoolToVisibility}}">
-                    <StackPanel>
+                <!-- Organize pages toolbar -->
+                <Border Grid.Row="0"
+                        Padding="8,4"
+                        Background="{DynamicResource PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Visibility="{Binding IsOrganizeMode, Converter={StaticResource BoolToVisibility}}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                            <TextBlock Margin="6,0,8,0" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" Text="ページを整理" />
+                            <Border Style="{StaticResource ToolbarSeparatorStyle}" />
+                            <Button x:Name="SelectMenuButton" Style="{StaticResource TextToolButtonStyle}" Click="OnMenuButtonClick" ToolTip="ページを選択">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="SelectAllOn24" FontSize="18" />
+                                    <TextBlock Margin="6,0,4,0" VerticalAlignment="Center" Text="選択" />
+                                    <ui:SymbolIcon Symbol="ChevronDown12" FontSize="10" />
+                                </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="すべてのページ" InputGestureText="Ctrl+A" Command="{Binding SelectPagesCommand}" CommandParameter="all" />
+                                        <MenuItem Header="奇数ページ" Command="{Binding SelectPagesCommand}" CommandParameter="odd" />
+                                        <MenuItem Header="偶数ページ" Command="{Binding SelectPagesCommand}" CommandParameter="even" />
+                                        <MenuItem Header="縦長のページ" Command="{Binding SelectPagesCommand}" CommandParameter="portrait" />
+                                        <MenuItem Header="横長のページ" Command="{Binding SelectPagesCommand}" CommandParameter="landscape" />
+                                        <Separator />
+                                        <MenuItem Header="選択を解除" Command="{Binding SelectPagesCommand}" CommandParameter="none" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                            <Border Style="{StaticResource ToolbarSeparatorStyle}" />
+                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding RotateLeftCommand}" ToolTip="左に 90° 回転">
+                                <ui:SymbolIcon Symbol="ArrowRotateCounterclockwise24" />
+                            </Button>
+                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding RotateRightCommand}" ToolTip="右に 90° 回転 (Ctrl+Shift+R)">
+                                <ui:SymbolIcon Symbol="ArrowRotateClockwise24" />
+                            </Button>
+                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding DeleteSelectedPagesCommand}" ToolTip="削除 (Delete)">
+                                <ui:SymbolIcon Symbol="Delete24" />
+                            </Button>
+                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding DuplicateSelectedPagesCommand}" ToolTip="複製">
+                                <ui:SymbolIcon Symbol="DocumentCopy24" />
+                            </Button>
+                            <Border Style="{StaticResource ToolbarSeparatorStyle}" />
+                            <Button x:Name="InsertMenuButton" Style="{StaticResource TextToolButtonStyle}" Click="OnMenuButtonClick" ToolTip="選択したページの後ろに挿入">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="DocumentAdd24" FontSize="18" />
+                                    <TextBlock Margin="6,0,4,0" VerticalAlignment="Center" Text="挿入" />
+                                    <ui:SymbolIcon Symbol="ChevronDown12" FontSize="10" />
+                                </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="ファイルから..." InputGestureText="Ctrl+Shift+I" Command="{Binding InsertFromFileCommand}" />
+                                        <MenuItem Header="空白ページ" Command="{Binding InsertBlankPageCommand}" />
+                                        <MenuItem Header="クリップボードから" Command="{Binding InsertFromClipboardCommand}" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                            <Button Style="{StaticResource TextToolButtonStyle}" Command="{Binding ExtractPagesCommand}" ToolTip="選択したページを新しい PDF に抽出">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="DocumentArrowUp20" FontSize="18" />
+                                    <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="抽出" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource TextToolButtonStyle}" Command="{Binding ReplacePagesCommand}" ToolTip="他のファイルのページと置き換え">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="ArrowSwap24" FontSize="18" />
+                                    <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="置換" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource TextToolButtonStyle}" Command="{Binding SplitDocumentCommand}" ToolTip="文書を複数のファイルに分割">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="DocumentSplitHint24" FontSize="18" />
+                                    <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="分割" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <TextBlock Margin="0,0,12,0" VerticalAlignment="Center" Style="{StaticResource MutedTextStyle}" Text="{Binding SelectionText}" />
+                            <ui:SymbolIcon Symbol="ZoomOut24" FontSize="16" Foreground="{DynamicResource MutedForegroundBrush}" />
+                            <Slider Width="110"
+                                    Margin="6,0"
+                                    VerticalAlignment="Center"
+                                    Minimum="{x:Static grid:PageGridView.MinTileWidth}"
+                                    Maximum="{x:Static grid:PageGridView.MaxTileWidth}"
+                                    Value="{Binding OrganizeTileWidth}"
+                                    ToolTip="サムネールの大きさ (Ctrl+ホイール)" />
+                            <ui:SymbolIcon Symbol="ZoomIn24" FontSize="16" Foreground="{DynamicResource MutedForegroundBrush}" />
+                            <Border Style="{StaticResource ToolbarSeparatorStyle}" />
+                            <Button Style="{StaticResource TextToolButtonStyle}" Command="{Binding ToggleOrganizeModeCommand}" ToolTip="ページ表示に戻る">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="Dismiss24" FontSize="16" />
+                                    <TextBlock Margin="6,0,0,0" VerticalAlignment="Center" Text="閉じる" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <Border />
+                    </DockPanel>
+                </Border>
+
+                <!-- Viewer with floating bars (hidden, not collapsed, while organizing so it keeps its position) -->
+                <Grid Grid.Row="1" Visibility="{Binding IsOrganizeMode, Converter={StaticResource InverseBoolToHidden}}">
+                    <viewer:PdfViewer x:Name="Viewer"
+                                      Session="{Binding Session}"
+                                      Zoom="{Binding Zoom}"
+                                      ZoomMode="{Binding ZoomMode}"
+                                      LayoutMode="{Binding LayoutMode}"
+                                      CoverPage="{Binding CoverPage}"
+                                      ViewRotation="{Binding ViewRotation}"
+                                      CurrentPageIndex="{Binding CurrentPageIndex}"
+                                      Tool="{Binding Tool}"
+                                      SearchHits="{Binding SearchHits}"
+                                      CurrentSearchHit="{Binding CurrentSearchHit}" />
+
+                    <!-- Find bar -->
+                    <Border Style="{StaticResource FloatingBarStyle}"
+                            Margin="0,10,26,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Visibility="{Binding IsFindBarOpen, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:TextBox x:Name="FindBox"
+                                            Width="230"
+                                            Margin="2"
+                                            PlaceholderText="文書内を検索"
+                                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                            PreviewKeyDown="OnFindBoxKeyDown" />
+                                <TextBlock MinWidth="64"
+                                           Margin="8,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                           Text="{Binding SearchStatus}" />
+                                <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding FindPreviousCommand}" ToolTip="前を検索 (Shift+Enter)">
+                                    <ui:SymbolIcon Symbol="ChevronUp24" />
+                                </Button>
+                                <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding FindNextCommand}" ToolTip="次を検索 (Enter)">
+                                    <ui:SymbolIcon Symbol="ChevronDown24" />
+                                </Button>
+                                <ToggleButton x:Name="FindOptionsToggle" Style="{StaticResource ToolToggleButtonStyle}" ToolTip="検索オプション">
+                                    <ui:SymbolIcon Symbol="Options24" />
+                                </ToggleButton>
+                                <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding CloseFindBarCommand}" ToolTip="閉じる (Esc)">
+                                    <ui:SymbolIcon Symbol="Dismiss24" />
+                                </Button>
+                            </StackPanel>
+                            <StackPanel Margin="8,4,8,6" Visibility="{Binding IsChecked, ElementName=FindOptionsToggle, Converter={StaticResource BoolToVisibility}}">
+                                <CheckBox Content="大文字と小文字を区別する" IsChecked="{Binding MatchCase}" />
+                                <CheckBox Content="単語単位で検索する" IsChecked="{Binding WholeWord}" />
+                                <CheckBox Content="全角と半角を区別する" IsChecked="{Binding MatchWidth}" />
+                                <Button Margin="0,6,0,0" HorizontalAlignment="Left" Content="結果を一覧表示" Click="OnShowSearchResultsClick" />
+                            </StackPanel>
+                            <ProgressBar Height="2"
+                                         Margin="4,0,4,0"
+                                         Maximum="1"
+                                         Value="{Binding SearchProgress}"
+                                         Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Page navigation and zoom -->
+                    <Border Style="{StaticResource FloatingBarStyle}"
+                            Margin="0,0,26,20"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom">
                         <StackPanel Orientation="Horizontal">
-                            <ui:TextBox x:Name="FindBox"
-                                        Width="230"
-                                        Margin="2"
-                                        PlaceholderText="文書内を検索"
-                                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                        PreviewKeyDown="OnFindBoxKeyDown" />
-                            <TextBlock MinWidth="64"
-                                       Margin="8,0"
-                                       VerticalAlignment="Center"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource MutedForegroundBrush}"
-                                       Text="{Binding SearchStatus}" />
-                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding FindPreviousCommand}" ToolTip="前を検索 (Shift+Enter)">
+                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding PreviousPageCommand}" ToolTip="前のページ">
                                 <ui:SymbolIcon Symbol="ChevronUp24" />
                             </Button>
-                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding FindNextCommand}" ToolTip="次を検索 (Enter)">
+                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding NextPageCommand}" ToolTip="次のページ">
                                 <ui:SymbolIcon Symbol="ChevronDown24" />
                             </Button>
-                            <ToggleButton x:Name="FindOptionsToggle" Style="{StaticResource ToolToggleButtonStyle}" ToolTip="検索オプション">
-                                <ui:SymbolIcon Symbol="Options24" />
-                            </ToggleButton>
-                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding CloseFindBarCommand}" ToolTip="閉じる (Esc)">
-                                <ui:SymbolIcon Symbol="Dismiss24" />
+                            <TextBox x:Name="PageBox"
+                                     Width="52"
+                                     Margin="4,2"
+                                     Padding="4,3"
+                                     HorizontalContentAlignment="Center"
+                                     VerticalContentAlignment="Center"
+                                     MinHeight="28"
+                                     Text="{Binding CurrentPageNumber, Mode=OneWay}"
+                                     ToolTip="{Binding CurrentPageLabel}"
+                                     PreviewKeyDown="OnPageBoxKeyDown"
+                                     LostKeyboardFocus="OnPageBoxLostFocus"
+                                     GotKeyboardFocus="OnPageBoxGotFocus" />
+                            <TextBlock Margin="2,0,8,0" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource MutedForegroundBrush}">
+                                <Run Text="/" />
+                                <Run Text="{Binding PageCount, Mode=OneWay}" />
+                            </TextBlock>
+                            <Border Style="{StaticResource ToolbarSeparatorStyle}" Margin="2,0" />
+                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding ZoomOutCommand}" ToolTip="縮小 (Ctrl+-)">
+                                <ui:SymbolIcon Symbol="ZoomOut24" />
                             </Button>
+                            <Button x:Name="ZoomButton"
+                                    MinWidth="58"
+                                    Style="{StaticResource TextToolButtonStyle}"
+                                    Click="OnMenuButtonClick"
+                                    ToolTip="ズーム"
+                                    Content="{Binding ZoomText}">
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="ページレベルにズーム" InputGestureText="Ctrl+0" IsCheckable="True" IsChecked="{Binding IsFitPage, Mode=OneWay}" Command="{Binding FitPageCommand}" />
+                                        <MenuItem Header="幅に合わせる" InputGestureText="Ctrl+2" IsCheckable="True" IsChecked="{Binding IsFitWidth, Mode=OneWay}" Command="{Binding FitWidthCommand}" />
+                                        <MenuItem Header="実際のサイズ" InputGestureText="Ctrl+1" Command="{Binding ActualSizeCommand}" />
+                                        <Separator />
+                                        <MenuItem Header="25%" Command="{Binding SetZoomPercentCommand}" CommandParameter="25" />
+                                        <MenuItem Header="50%" Command="{Binding SetZoomPercentCommand}" CommandParameter="50" />
+                                        <MenuItem Header="75%" Command="{Binding SetZoomPercentCommand}" CommandParameter="75" />
+                                        <MenuItem Header="100%" Command="{Binding SetZoomPercentCommand}" CommandParameter="100" />
+                                        <MenuItem Header="125%" Command="{Binding SetZoomPercentCommand}" CommandParameter="125" />
+                                        <MenuItem Header="150%" Command="{Binding SetZoomPercentCommand}" CommandParameter="150" />
+                                        <MenuItem Header="200%" Command="{Binding SetZoomPercentCommand}" CommandParameter="200" />
+                                        <MenuItem Header="400%" Command="{Binding SetZoomPercentCommand}" CommandParameter="400" />
+                                        <MenuItem Header="800%" Command="{Binding SetZoomPercentCommand}" CommandParameter="800" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                            <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding ZoomInCommand}" ToolTip="拡大 (Ctrl++)">
+                                <ui:SymbolIcon Symbol="ZoomIn24" />
+                            </Button>
+                            <ToggleButton Style="{StaticResource ToolToggleButtonStyle}" IsChecked="{Binding IsFitPage, Mode=OneWay}" Command="{Binding FitPageCommand}" ToolTip="ページ全体を表示 (Ctrl+0)">
+                                <ui:SymbolIcon Symbol="PageFit24" />
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource ToolToggleButtonStyle}" IsChecked="{Binding IsFitWidth, Mode=OneWay}" Command="{Binding FitWidthCommand}" ToolTip="幅に合わせる (Ctrl+2)">
+                                <ui:SymbolIcon Symbol="ArrowAutofitWidth24" />
+                            </ToggleButton>
                         </StackPanel>
-                        <StackPanel Margin="8,4,8,6" Visibility="{Binding IsChecked, ElementName=FindOptionsToggle, Converter={StaticResource BoolToVisibility}}">
-                            <CheckBox Content="大文字と小文字を区別する" IsChecked="{Binding MatchCase}" />
-                            <CheckBox Content="単語単位で検索する" IsChecked="{Binding WholeWord}" />
-                            <CheckBox Content="全角と半角を区別する" IsChecked="{Binding MatchWidth}" />
-                            <Button Margin="0,6,0,0" HorizontalAlignment="Left" Content="結果を一覧表示" Click="OnShowSearchResultsClick" />
-                        </StackPanel>
-                        <ProgressBar Height="2"
-                                     Margin="4,0,4,0"
-                                     Maximum="1"
-                                     Value="{Binding SearchProgress}"
-                                     Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}" />
-                    </StackPanel>
-                </Border>
+                    </Border>
+                </Grid>
 
-                <!-- Page navigation and zoom -->
-                <Border Style="{StaticResource FloatingBarStyle}"
-                        Margin="0,0,26,20"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom">
-                    <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding PreviousPageCommand}" ToolTip="前のページ">
-                            <ui:SymbolIcon Symbol="ChevronUp24" />
-                        </Button>
-                        <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding NextPageCommand}" ToolTip="次のページ">
-                            <ui:SymbolIcon Symbol="ChevronDown24" />
-                        </Button>
-                        <TextBox x:Name="PageBox"
-                                 Width="52"
-                                 Margin="4,2"
-                                 Padding="4,3"
-                                 HorizontalContentAlignment="Center"
-                                 VerticalContentAlignment="Center"
-                                 MinHeight="28"
-                                 Text="{Binding CurrentPageNumber, Mode=OneWay}"
-                                 ToolTip="{Binding CurrentPageLabel}"
-                                 PreviewKeyDown="OnPageBoxKeyDown"
-                                 LostKeyboardFocus="OnPageBoxLostFocus"
-                                 GotKeyboardFocus="OnPageBoxGotFocus" />
-                        <TextBlock Margin="2,0,8,0" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource MutedForegroundBrush}">
-                            <Run Text="/" />
-                            <Run Text="{Binding PageCount, Mode=OneWay}" />
-                        </TextBlock>
-                        <Border Style="{StaticResource ToolbarSeparatorStyle}" Margin="2,0" />
-                        <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding ZoomOutCommand}" ToolTip="縮小 (Ctrl+-)">
-                            <ui:SymbolIcon Symbol="ZoomOut24" />
-                        </Button>
-                        <Button x:Name="ZoomButton"
-                                MinWidth="58"
-                                Style="{StaticResource TextToolButtonStyle}"
-                                Click="OnMenuButtonClick"
-                                ToolTip="ズーム"
-                                Content="{Binding ZoomText}">
-                            <Button.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="ページレベルにズーム" InputGestureText="Ctrl+0" IsCheckable="True" IsChecked="{Binding IsFitPage, Mode=OneWay}" Command="{Binding FitPageCommand}" />
-                                    <MenuItem Header="幅に合わせる" InputGestureText="Ctrl+2" IsCheckable="True" IsChecked="{Binding IsFitWidth, Mode=OneWay}" Command="{Binding FitWidthCommand}" />
-                                    <MenuItem Header="実際のサイズ" InputGestureText="Ctrl+1" Command="{Binding ActualSizeCommand}" />
-                                    <Separator />
-                                    <MenuItem Header="25%" Command="{Binding SetZoomPercentCommand}" CommandParameter="25" />
-                                    <MenuItem Header="50%" Command="{Binding SetZoomPercentCommand}" CommandParameter="50" />
-                                    <MenuItem Header="75%" Command="{Binding SetZoomPercentCommand}" CommandParameter="75" />
-                                    <MenuItem Header="100%" Command="{Binding SetZoomPercentCommand}" CommandParameter="100" />
-                                    <MenuItem Header="125%" Command="{Binding SetZoomPercentCommand}" CommandParameter="125" />
-                                    <MenuItem Header="150%" Command="{Binding SetZoomPercentCommand}" CommandParameter="150" />
-                                    <MenuItem Header="200%" Command="{Binding SetZoomPercentCommand}" CommandParameter="200" />
-                                    <MenuItem Header="400%" Command="{Binding SetZoomPercentCommand}" CommandParameter="400" />
-                                    <MenuItem Header="800%" Command="{Binding SetZoomPercentCommand}" CommandParameter="800" />
-                                </ContextMenu>
-                            </Button.ContextMenu>
-                        </Button>
-                        <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding ZoomInCommand}" ToolTip="拡大 (Ctrl++)">
-                            <ui:SymbolIcon Symbol="ZoomIn24" />
-                        </Button>
-                        <ToggleButton Style="{StaticResource ToolToggleButtonStyle}" IsChecked="{Binding IsFitPage, Mode=OneWay}" Command="{Binding FitPageCommand}" ToolTip="ページ全体を表示 (Ctrl+0)">
-                            <ui:SymbolIcon Symbol="PageFit24" />
-                        </ToggleButton>
-                        <ToggleButton Style="{StaticResource ToolToggleButtonStyle}" IsChecked="{Binding IsFitWidth, Mode=OneWay}" Command="{Binding FitWidthCommand}" ToolTip="幅に合わせる (Ctrl+2)">
-                            <ui:SymbolIcon Symbol="ArrowAutofitWidth24" />
-                        </ToggleButton>
-                    </StackPanel>
-                </Border>
+                <!-- Page grid ("ページを整理") -->
+                <grid:PageGridView x:Name="PageGrid"
+                                   Grid.Row="1"
+                                   Document="{Binding}"
+                                   TileWidth="{Binding OrganizeTileWidth}"
+                                   Visibility="{Binding IsOrganizeMode, Converter={StaticResource BoolToVisibility}}" />
             </Grid>
 
             <!-- Side panel content -->
@@ -287,6 +413,9 @@
                             <Button DockPanel.Dock="Right" Style="{StaticResource PanelCloseButtonStyle}" Command="{Binding ShowPanelCommand}" CommandParameter="{x:Static vm:SidePanel.Thumbnails}" ToolTip="閉じる">
                                 <ui:SymbolIcon Symbol="Dismiss24" />
                             </Button>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource PanelCloseButtonStyle}" Command="{Binding ToggleOrganizeModeCommand}" ToolTip="ページを整理">
+                                <ui:SymbolIcon Symbol="DocumentMultiple24" />
+                            </Button>
                             <TextBlock Style="{StaticResource PanelHeaderTextStyle}" Text="ページサムネール" />
                         </DockPanel>
                         <ListBox x:Name="ThumbnailList"
@@ -294,17 +423,40 @@
                                  ItemContainerStyle="{StaticResource PlainListBoxItemStyle}"
                                  Background="Transparent"
                                  BorderThickness="0"
+                                 AllowDrop="True"
+                                 DragOver="OnThumbnailDragOver"
+                                 Drop="OnThumbnailDrop"
                                  VirtualizingPanel.IsVirtualizing="True"
                                  VirtualizingPanel.VirtualizationMode="Standard"
                                  VirtualizingPanel.ScrollUnit="Pixel"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="左に回転" Command="{Binding RotateLeftCommand}" />
+                                    <MenuItem Header="右に回転" Command="{Binding RotateRightCommand}" InputGestureText="Ctrl+Shift+R" />
+                                    <MenuItem Header="削除" Command="{Binding DeleteSelectedPagesCommand}" InputGestureText="Ctrl+Shift+D" />
+                                    <Separator />
+                                    <MenuItem Header="切り取り" Command="{Binding CutPagesCommand}" />
+                                    <MenuItem Header="コピー" Command="{Binding CopyPagesCommand}" />
+                                    <MenuItem Header="後ろに貼り付け" Command="{Binding PastePagesCommand}" />
+                                    <MenuItem Header="複製" Command="{Binding DuplicateSelectedPagesCommand}" />
+                                    <Separator />
+                                    <MenuItem Header="空白ページを後ろに挿入" Command="{Binding InsertBlankPageCommand}" />
+                                    <MenuItem Header="ファイルを後ろに挿入..." Command="{Binding InsertFromFileCommand}" InputGestureText="Ctrl+Shift+I" />
+                                    <MenuItem Header="ページを抽出..." Command="{Binding ExtractPagesCommand}" />
+                                    <MenuItem Header="ページを置換..." Command="{Binding ReplacePagesCommand}" />
+                                    <Separator />
+                                    <MenuItem Header="ページを整理" Command="{Binding ToggleOrganizeModeCommand}" />
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Margin="0,8,0,4"
                                                 HorizontalAlignment="Center"
                                                 Background="Transparent"
                                                 Loaded="OnThumbnailLoaded"
-                                                MouseLeftButtonUp="OnThumbnailClick"
+                                                MouseLeftButtonDown="OnThumbnailMouseDown"
+                                                PreviewMouseRightButtonDown="OnThumbnailRightMouseDown"
                                                 Cursor="Hand">
                                         <Border x:Name="Frame"
                                                 Padding="3"
@@ -327,6 +479,9 @@
                                                    Text="{Binding Label}" />
                                     </StackPanel>
                                     <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                            <Setter TargetName="Frame" Property="Background" Value="{DynamicResource ToolCheckedBackgroundBrush}" />
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                                             <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource ThumbnailSelectedBorderBrush}" />
                                             <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
@@ -425,6 +580,25 @@
                         <ui:SymbolIcon Symbol="DocumentSearch24" />
                     </ToggleButton>
                 </StackPanel>
+            </Border>
+
+            <!-- Busy overlay (saving, extracting, splitting...) -->
+            <Border Grid.Column="0"
+                    Grid.ColumnSpan="4"
+                    Background="#66000000"
+                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
+                <Border HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Padding="26,18"
+                        CornerRadius="10"
+                        Background="{DynamicResource PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:ProgressRing Width="28" Height="28" IsIndeterminate="True" />
+                        <TextBlock Margin="14,0,0,0" VerticalAlignment="Center" FontSize="13" Text="{Binding BusyMessage}" />
+                    </StackPanel>
+                </Border>
             </Border>
         </Grid>
     </Grid>

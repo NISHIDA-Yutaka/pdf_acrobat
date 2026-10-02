@@ -1,0 +1,10 @@
+﻿# Phase 2 auto-save, part 2: restore what part 1 left behind.
+size 1400 900
+recover
+state
+pages
+tab 1
+pages
+screenshot ../../artifacts/p2-12-recovered.png
+recover
+exit

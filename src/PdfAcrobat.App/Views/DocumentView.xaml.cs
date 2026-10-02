@@ -12,6 +12,7 @@ namespace PdfAcrobat.App.Views;
 public partial class DocumentView
 {
     private DocumentViewModel? _viewModel;
+    private int _thumbnailAnchor = -1;
 
     public DocumentView()
     {
@@ -28,6 +29,8 @@ public partial class DocumentView
     }
 
     public Controls.Viewer.PdfViewer PdfViewer => Viewer;
+
+    public Controls.PageGrid.PageGridView PageGridView => PageGrid;
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
@@ -75,6 +78,9 @@ public partial class DocumentView
                 break;
             case nameof(DocumentViewModel.ActivePanel):
                 Dispatcher.BeginInvoke(ScrollThumbnailIntoView, System.Windows.Threading.DispatcherPriority.Loaded);
+                break;
+            case nameof(DocumentViewModel.IsOrganizeMode) when _viewModel?.IsOrganizeMode == false:
+                Dispatcher.BeginInvoke(() => Viewer.Focus(), System.Windows.Threading.DispatcherPriority.Input);
                 break;
         }
     }
@@ -197,13 +203,95 @@ public partial class DocumentView
         }
     }
 
-    private void OnThumbnailClick(object sender, MouseButtonEventArgs e)
+    /// <summary>Click navigates; Ctrl+click and Shift+click select several pages for the context menu.</summary>
+    private void OnThumbnailMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: ThumbnailItemViewModel item } && _viewModel is not null)
+        if (sender is not FrameworkElement { DataContext: ThumbnailItemViewModel item } || _viewModel is not { } vm)
         {
-            _viewModel.CurrentPageIndex = item.Index;
+            return;
+        }
+
+        var modifiers = Keyboard.Modifiers;
+        if ((modifiers & ModifierKeys.Shift) != 0 && _thumbnailAnchor >= 0 && _thumbnailAnchor < vm.PageCount)
+        {
+            var from = Math.Min(_thumbnailAnchor, item.Index);
+            vm.SelectedPages = Enumerable.Range(from, Math.Abs(item.Index - _thumbnailAnchor) + 1).ToList();
+            vm.CurrentPageIndex = item.Index;
+        }
+        else if ((modifiers & ModifierKeys.Control) != 0)
+        {
+            var selection = vm.SelectedPages.Count > 0 ? vm.SelectedPages.ToHashSet() : [vm.CurrentPageIndex];
+            if (!selection.Remove(item.Index))
+            {
+                selection.Add(item.Index);
+            }
+
+            vm.SelectedPages = selection.Order().ToList();
+            if (selection.Count > 0)
+            {
+                // Show a selected page so that the selection stays the target of page commands.
+                vm.CurrentPageIndex = selection.Contains(item.Index) ? item.Index : selection.Max();
+            }
+
+            _thumbnailAnchor = item.Index;
+        }
+        else
+        {
+            vm.SelectedPages = [item.Index];
+            vm.CurrentPageIndex = item.Index;
+            _thumbnailAnchor = item.Index;
             Viewer.Focus();
         }
+
+        e.Handled = true;
+    }
+
+    /// <summary>Right-click targets the clicked page (or the selection it belongs to).</summary>
+    private void OnThumbnailRightMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ThumbnailItemViewModel item } && _viewModel is { } vm)
+        {
+            if (!vm.SelectedPages.Contains(item.Index))
+            {
+                vm.SelectedPages = [item.Index];
+                _thumbnailAnchor = item.Index;
+            }
+
+            vm.CurrentPageIndex = item.Index;
+        }
+    }
+
+    private static List<string> DroppedInsertableFiles(DragEventArgs e) =>
+        e.Data.GetData(DataFormats.FileDrop) is string[] files
+            ? files.Where(f => System.IO.File.Exists(f)
+                               && (string.Equals(System.IO.Path.GetExtension(f), ".pdf", StringComparison.OrdinalIgnoreCase)
+                                   || Core.Import.ImagePdfConverter.IsImage(f))).ToList()
+            : [];
+
+    private void OnThumbnailDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = DroppedInsertableFiles(e).Count > 0 ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    /// <summary>Files dropped on the thumbnails are inserted after the page they are dropped on.</summary>
+    private async void OnThumbnailDrop(object sender, DragEventArgs e)
+    {
+        e.Handled = true;
+        var files = DroppedInsertableFiles(e);
+        if (files.Count == 0 || _viewModel is not { } vm)
+        {
+            return;
+        }
+
+        var element = e.OriginalSource as DependencyObject;
+        while (element is not null and not ListBoxItem)
+        {
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        var at = element is ListBoxItem { DataContext: ThumbnailItemViewModel target } ? target.Index + 1 : vm.PageCount;
+        await vm.InsertFilesAsync(at, files);
     }
 
     // ---- Bookmarks --------------------------------------------------------------------------

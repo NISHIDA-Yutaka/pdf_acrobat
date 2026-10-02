@@ -163,6 +163,6 @@ public sealed partial class HomeViewModel : TabViewModel
             return;
         }
 
-        _main.RunHomeTool(tool.Key);
+        _main.RunTool(tool.Key);
     }
 }

@@ -10,6 +10,7 @@ public static class ToolCatalog
 {
     public const string Open = "open";
     public const string Combine = "combine";
+    public const string Create = "create";
     public const string Organize = "organize";
     public const string Comment = "comment";
     public const string FillSign = "fill-sign";
@@ -32,8 +33,9 @@ public static class ToolCatalog
         new(Export, "PDF を書き出し", "Word・Excel・画像などに変換", SymbolRegular.ArrowExportUp24, false, "Phase 6", "#1473E6"),
         new(FillSign, "入力と署名", "フォームに入力して署名", SymbolRegular.Signature24, false, "Phase 4", "#7E4CE6"),
         new(Comment, "注釈", "ハイライト・ノート・描画", SymbolRegular.Comment24, false, "Phase 3", "#E8A600"),
-        new(Organize, "ページを整理", "回転・削除・並べ替え・抽出", SymbolRegular.DocumentMultiple24, false, "Phase 2", "#12A35A"),
-        new(Combine, "ファイルを結合", "複数のファイルを 1 つの PDF に", SymbolRegular.Merge24, false, "Phase 2", "#0E9AA7"),
+        new(Organize, "ページを整理", "回転・削除・並べ替え・抽出", SymbolRegular.DocumentMultiple24, true, "Phase 2", "#12A35A"),
+        new(Combine, "ファイルを結合", "複数のファイルを 1 つの PDF に", SymbolRegular.Merge24, true, "Phase 2", "#0E9AA7"),
+        new(Create, "PDF を作成", "空白ページ・画像・クリップボードから", SymbolRegular.DocumentAdd24, true, "Phase 2", "#E1251B"),
         new(Compress, "PDF を圧縮", "ファイルサイズを小さくする", SymbolRegular.ArrowMinimize24, false, "Phase 6", "#D7373F"),
         new(Ocr, "スキャンと OCR", "画像の文字を検索可能に", SymbolRegular.ScanText24, false, "Phase 7", "#2D9D78"),
         new(Protect, "PDF を保護", "パスワードと権限を設定", SymbolRegular.LockClosed24, false, "Phase 8", "#5258E4"),
@@ -46,5 +48,6 @@ public static class ToolCatalog
         new(AiAssistant, "AI アシスタント", "要約と質問応答", SymbolRegular.Sparkle24, false, "Phase 13", "#B04CE6"),
     ];
 
-    public static IReadOnlyList<ToolCard> HomeTools { get; } = All.Take(8).ToList();
+    /// <summary>Home screen cards: tools that already work first (the sort is stable).</summary>
+    public static IReadOnlyList<ToolCard> HomeTools { get; } = All.OrderByDescending(t => t.IsAvailable).Take(8).ToList();
 }

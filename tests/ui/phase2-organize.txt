@@ -1,0 +1,52 @@
+# Phase 2: page grid (selection, drag & drop, rotate/delete/insert, undo/redo), saving and re-opening.
+size 1400 900
+open ../../samples/basic.pdf
+pages
+organize on
+screenshot ../../artifacts/p2-01-organize.png
+grid-click 2
+grid-click 4 shift
+pages
+screenshot ../../artifacts/p2-02-selection.png
+page-op rotate-right
+screenshot ../../artifacts/p2-03-rotated.png
+page-op undo
+page-op redo
+grid-click 1
+grid-hover 2
+grid-hover gap 4
+screenshot ../../artifacts/p2-03b-hover.png
+grid-drag 1 4 screenshot-midway ../../artifacts/p2-04-dragging.png
+screenshot ../../artifacts/p2-05-after-drag.png
+page-op undo
+select-pages 5-6
+page-op delete
+page-op undo
+select-pages 2
+page-op insert-blank
+page-op duplicate
+insert-file ../../samples/basic.pdf 1
+screenshot ../../artifacts/p2-06-inserted.png
+grid-menu 3 ../../artifacts/p2-06a-page-menu.png
+grid-menu 0 ../../artifacts/p2-06b-background-menu.png
+grid-size 96
+screenshot ../../artifacts/p2-07-small-tiles.png
+grid-size 240
+theme dark
+screenshot ../../artifacts/p2-08-dark-large.png
+theme light
+grid-size 150
+grid-click 3 double
+state
+screenshot ../../artifacts/p2-09-back-to-viewer.png
+panel thumbnails
+select-pages 3-4
+screenshot ../../artifacts/p2-10-thumbnail-selection.png
+save-as ../../artifacts/p2-saved.pdf
+state
+close-tab
+open ../../artifacts/p2-saved.pdf
+pages
+panel thumbnails
+screenshot ../../artifacts/p2-11-reopened.png
+exit

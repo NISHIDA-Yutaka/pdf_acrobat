@@ -3,7 +3,7 @@ using System.Globalization;
 namespace PdfAcrobat.Core.Documents;
 
 /// <summary>Parses page range expressions such as "1-3, 5, 8-" (one-based, inclusive).</summary>
-public static class PageRangeParser
+public static partial class PageRangeParser
 {
     /// <summary>
     /// Returns zero-based page indices in the order written. Open ranges ("8-", "-3") extend to the
@@ -18,15 +18,7 @@ public static class PageRangeParser
             return false;
         }
 
-        var normalized = text.Normalize(System.Text.NormalizationForm.FormKC)
-            .Replace('、', ',')
-            .Replace('，', ',')
-            .Replace('～', '-')
-            .Replace('〜', '-')
-            .Replace('–', '-')
-            .Replace('~', '-')
-            .Replace('ー', '-');
-        foreach (var rawPart in normalized.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries))
+        foreach (var rawPart in Normalize(text).Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries))
         {
             var part = rawPart.Trim();
             var dash = part.IndexOf('-');
@@ -71,6 +63,50 @@ public static class PageRangeParser
 
         return result.Count > 0;
     }
+
+    /// <summary>
+    /// Parses comma-separated ranges into one group per range ("1-3, 4-10, 11-" → three groups),
+    /// e.g. for splitting a document into one file per range.
+    /// </summary>
+    public static bool TryParseGroups(string? text, int pageCount, out IReadOnlyList<IReadOnlyList<int>> groups)
+    {
+        var result = new List<IReadOnlyList<int>>();
+        groups = result;
+        if (string.IsNullOrWhiteSpace(text) || pageCount <= 0)
+        {
+            return false;
+        }
+
+        foreach (var part in Normalize(text).Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!TryParse(part, pageCount, out var pages))
+            {
+                return false;
+            }
+
+            result.Add(pages);
+        }
+
+        return result.Count > 0;
+    }
+
+    private static string Normalize(string text)
+    {
+        var normalized = text.Normalize(System.Text.NormalizationForm.FormKC)
+            .Replace('、', ',')
+            .Replace('，', ',')
+            .Replace('～', '-')
+            .Replace('〜', '-')
+            .Replace('–', '-')
+            .Replace('~', '-')
+            .Replace('ー', '-');
+
+        // "1 - 3" means the range 1-3, not the pages 1, everything and 3.
+        return DashSpacing().Replace(normalized, "-");
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s*-\s*")]
+    private static partial System.Text.RegularExpressions.Regex DashSpacing();
 
     private static bool TryNumber(string text, out int value) =>
         int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);

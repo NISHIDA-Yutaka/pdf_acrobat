@@ -1,0 +1,10 @@
+# Phase 2 auto-save, part 1: edit a document, auto-save it, then crash (part 2 restores it).
+open ../../samples/basic.pdf
+organize on
+select-pages 2-3
+page-op delete
+organize off
+autosave-now
+create-blank 0 2
+autosave-now
+crash

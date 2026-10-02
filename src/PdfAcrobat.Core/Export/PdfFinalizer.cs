@@ -5,7 +5,7 @@ using PdfSharp.Pdf.IO;
 
 namespace PdfAcrobat.Core.Export;
 
-public sealed record FinalizeOptions(IReadOnlyList<ExportBookmark> Bookmarks, string? Title);
+public sealed record FinalizeOptions(IReadOnlyList<ExportBookmark> Bookmarks, string? Title, bool ReplaceBookmarks = false);
 
 /// <summary>
 /// Post-processes an assembled PDF with PDFsharp:
@@ -45,6 +45,11 @@ public static class PdfFinalizer
         AcroFormRepair.Repair(document, pageIds);
         cleaner.ScrubRemainingPageReferences();
 
+        if (options.ReplaceBookmarks)
+        {
+            catalog.Elements.Remove("/Outlines");
+        }
+
         if (options.Bookmarks.Count > 0)
         {
             AppendBookmarks(document, options.Bookmarks);
@@ -73,8 +78,18 @@ public static class PdfFinalizer
             catalog.Elements.SetReference("/Outlines", root);
         }
 
-        var last = root.Elements.GetDictionary("/Last");
-        var added = 0;
+        var visible = AppendItems(document, root, bookmarks);
+        root.Elements.SetInteger("/Count", Math.Abs(root.Elements.GetInteger("/Count")) + visible);
+    }
+
+    /// <summary>
+    /// Appends outline items (and their children) under <paramref name="parent"/>. Returns how many items
+    /// become visible below the parent when it is open, as /Count requires.
+    /// </summary>
+    private static int AppendItems(PdfDocument document, PdfDictionary parent, IReadOnlyList<ExportBookmark> bookmarks)
+    {
+        var last = parent.Elements.GetDictionary("/Last");
+        var visible = 0;
         foreach (var bookmark in bookmarks)
         {
             if (bookmark.PageIndex < 0 || bookmark.PageIndex >= document.PageCount)
@@ -85,14 +100,25 @@ public static class PdfFinalizer
             var item = new PdfDictionary(document);
             document.Internals.AddObject(item);
             item.Elements["/Title"] = new PdfString(bookmark.Title, PdfStringEncoding.Unicode);
-            item.Elements.SetReference("/Parent", root);
+            item.Elements.SetReference("/Parent", parent);
             var dest = new PdfArray(document);
             dest.Elements.Add(document.Pages[bookmark.PageIndex].Reference!);
-            dest.Elements.Add(new PdfName("/Fit"));
+            if (bookmark.X is not null || bookmark.Y is not null)
+            {
+                dest.Elements.Add(new PdfName("/XYZ"));
+                dest.Elements.Add(bookmark.X is { } x ? new PdfReal(x) : PdfNull.Value);
+                dest.Elements.Add(bookmark.Y is { } y ? new PdfReal(y) : PdfNull.Value);
+                dest.Elements.Add(PdfNull.Value);
+            }
+            else
+            {
+                dest.Elements.Add(new PdfName("/Fit"));
+            }
+
             item.Elements["/Dest"] = dest;
             if (last is null)
             {
-                root.Elements.SetReference("/First", item);
+                parent.Elements.SetReference("/First", item);
             }
             else
             {
@@ -101,15 +127,24 @@ public static class PdfFinalizer
             }
 
             last = item;
-            added++;
+            visible++;
+            if (bookmark.Children.Count > 0)
+            {
+                var descendants = AppendItems(document, item, bookmark.Children);
+                if (descendants > 0)
+                {
+                    item.Elements.SetInteger("/Count", bookmark.IsOpen ? descendants : -descendants);
+                    visible += bookmark.IsOpen ? descendants : 0;
+                }
+            }
         }
 
         if (last is not null)
         {
-            root.Elements.SetReference("/Last", last);
+            parent.Elements.SetReference("/Last", last);
         }
 
-        root.Elements.SetInteger("/Count", Math.Abs(root.Elements.GetInteger("/Count")) + added);
+        return visible;
     }
 }
 

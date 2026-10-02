@@ -56,11 +56,17 @@ public partial class App
 
         window.Show();
         viewModel.OpenFiles(options.Files.Where(File.Exists));
+        AppServices.AutoSave.Start(() => viewModel.Documents.Select(d => d.Session));
 
         if (options.ScriptPath is { } script)
         {
             window.SkipCloseConfirmation = true;
             _ = new AutomationRunner(window, viewModel).RunAsync(script);
+        }
+        else
+        {
+            // Offer documents left unsaved by a crash once the window is up.
+            Dispatcher.BeginInvoke(() => viewModel.RecoverDocuments(ask: true), DispatcherPriority.ApplicationIdle);
         }
     }
 

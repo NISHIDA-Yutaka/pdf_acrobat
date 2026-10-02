@@ -52,11 +52,22 @@ public partial class MainWindow
         }
     }
 
+    private bool _exitConfirmed;
+
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (!SkipCloseConfirmation && !ViewModel.PrepareToExit())
+        if (!SkipCloseConfirmation && !_exitConfirmed)
         {
+            // Saving may show dialogs and run asynchronously: cancel now, close again when done.
             e.Cancel = true;
+            Dispatcher.BeginInvoke(async () =>
+            {
+                if (await ViewModel.PrepareToExitAsync())
+                {
+                    _exitConfirmed = true;
+                    Close();
+                }
+            });
             return;
         }
 
@@ -77,27 +88,35 @@ public partial class MainWindow
         base.OnClosing(e);
     }
 
-    private static IEnumerable<string> DroppedPdfFiles(DragEventArgs e) =>
-        e.Data.GetData(DataFormats.FileDrop) is string[] files
-            ? files.Where(f => string.Equals(Path.GetExtension(f), ".pdf", StringComparison.OrdinalIgnoreCase))
-            : [];
+    private static string[] DroppedFiles(DragEventArgs e) =>
+        e.Data.GetData(DataFormats.FileDrop) is string[] files ? files.Where(File.Exists).ToArray() : [];
+
+    private static bool IsPdf(string path) => string.Equals(Path.GetExtension(path), ".pdf", StringComparison.OrdinalIgnoreCase);
 
     private void OnDragOver(object sender, DragEventArgs e)
     {
-        e.Effects = DroppedPdfFiles(e).Any() ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Effects = DroppedFiles(e).Any(f => IsPdf(f) || Core.Import.ImagePdfConverter.IsImage(f)) ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
     }
 
-    private void OnDrop(object sender, DragEventArgs e)
+    /// <summary>PDFs open in tabs; images are combined into a new PDF.</summary>
+    private async void OnDrop(object sender, DragEventArgs e)
     {
-        var files = DroppedPdfFiles(e).ToList();
-        if (files.Count > 0)
+        e.Handled = true;
+        var files = DroppedFiles(e);
+        var pdfs = files.Where(IsPdf).ToList();
+        var images = files.Where(Core.Import.ImagePdfConverter.IsImage).ToList();
+        if (pdfs.Count == 0 && images.Count == 0)
         {
-            Activate();
-            ViewModel.OpenFiles(files);
+            return;
         }
 
-        e.Handled = true;
+        Activate();
+        ViewModel.OpenFiles(pdfs);
+        if (images.Count > 0)
+        {
+            await ViewModel.CreateFromImageFilesAsync(images);
+        }
     }
 
     /// <summary>Middle-click closes a tab, like in browsers.</summary>
@@ -116,7 +135,7 @@ public partial class MainWindow
 
         if (element is ListBoxItem { DataContext: TabViewModel tab })
         {
-            ViewModel.CloseTab(tab);
+            _ = ViewModel.CloseTab(tab);
             e.Handled = true;
         }
     }

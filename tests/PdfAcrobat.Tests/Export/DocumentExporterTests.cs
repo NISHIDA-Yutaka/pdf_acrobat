@@ -184,14 +184,80 @@ public class DocumentExporterTests
     }
 
     [Fact]
+    public void CombiningWithFileBookmarks_NestsEachFilesOutline()
+    {
+        var first = PdfSource.Load(TestFiles.ReadSample("basic.pdf"), "a.pdf");
+        var second = PdfSource.Load(TestFiles.ReadSample("basic.pdf"), "b.pdf");
+        using var session = DocumentSession.CreateUnsaved("結合.pdf", [first, second]);
+        var bookmarks = new[]
+        {
+            new ExportBookmark("a", 0) { Children = ExportBookmark.FromOutline(first.Document.GetBookmarks(), 0, first.PageCount) },
+            new ExportBookmark("b", 6) { Children = ExportBookmark.FromOutline(second.Document.GetBookmarks(), 6, second.PageCount), IsOpen = true },
+        };
+
+        var bytes = DocumentExporter.Export(session, new ExportOptions { Bookmarks = bookmarks, ReplaceBookmarks = true });
+
+        using var output = PdfDocument.Load(bytes);
+        var outline = output.GetBookmarks();
+        Assert.Equal(["a", "b"], outline.Select(b => b.Title));
+        Assert.False(outline[0].IsOpen);
+        Assert.True(outline[1].IsOpen);
+        Assert.Equal(first.Document.GetBookmarks().Count, outline[0].Children.Count);
+
+        // The second copy's chapter bookmarks point into the second half, at the same position on the page.
+        var original = first.Document.GetBookmarks().Single(b => b.Title == "第5章 画像").Destination!;
+        var shifted = outline[1].Children.Single(b => b.Title == "第5章 画像").Destination!;
+        Assert.Equal(original.PageIndex + 6, shifted.PageIndex);
+        Assert.Equal(original.Y ?? 0, shifted.Y ?? 0, 1);
+        Assert.Contains("1.1 背景", FlattenTitles(outline[1].Children));
+    }
+
+    [Fact]
+    public void Text_IsLaidOutOnPages()
+    {
+        var text = string.Join("\n", Enumerable.Range(1, 120).Select(i => $"{i} 行目: 日本語と English の混在した行です。"));
+
+        using var output = PdfDocument.Load(TextPdfConverter.Convert(text));
+
+        Assert.True(output.PageCount >= 2);
+        Assert.Contains("1 行目", PageText(output, 0));
+        Assert.Contains("120 行目", PageText(output, output.PageCount - 1));
+    }
+
+    [Fact]
+    public void TextWrap_KeepsLatinWordsAndClosingPunctuation()
+    {
+        static double Width(string element) => element.Length * 10; // every character is 10 units wide
+        var lines = new List<string>();
+
+        TextPdfConverter.Wrap("hello wonderful world", 100, Width, lines);
+        TextPdfConverter.Wrap("あいうえおかきくけこ。さしす", 100, Width, lines);
+
+        Assert.Equal(["hello", "wonderful", "world", "あいうえおかきくけこ。", "さしす"], lines);
+    }
+
+    [Fact]
     public void PageRangeParser_ParsesCommonForms()
     {
         Assert.True(PageRangeParser.TryParse("1-3, 5, 8-", 10, out var pages));
         Assert.Equal([0, 1, 2, 4, 7, 8, 9], pages);
         Assert.True(PageRangeParser.TryParse("３～１", 5, out var reversed));
         Assert.Equal([2, 1, 0], reversed);
+        Assert.True(PageRangeParser.TryParse("2 - 4", 5, out var spaced));
+        Assert.Equal([1, 2, 3], spaced);
         Assert.False(PageRangeParser.TryParse("0", 5, out _));
         Assert.False(PageRangeParser.TryParse("2-x", 5, out _));
         Assert.Equal("1-3, 5", PageRangeParser.Format([2, 0, 1, 4]));
+    }
+
+    [Fact]
+    public void PageRangeParser_ParsesGroups()
+    {
+        Assert.True(PageRangeParser.TryParseGroups("1-3, 4 - 6、7-", 9, out var groups));
+        Assert.Equal(3, groups.Count);
+        Assert.Equal([0, 1, 2], groups[0]);
+        Assert.Equal([3, 4, 5], groups[1]);
+        Assert.Equal([6, 7, 8], groups[2]);
+        Assert.False(PageRangeParser.TryParseGroups("1-3, 12", 9, out _));
     }
 }

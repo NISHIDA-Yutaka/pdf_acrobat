@@ -1,0 +1,17 @@
+﻿# Phase 2 performance: page grid and page operations on the 1,200-page sample.
+size 1400 900
+open ../../samples/large.pdf
+panel thumbnails
+organize on
+page-op select-all
+page-op rotate-right
+page-op undo
+select-pages 600-700
+grid-drag 650 1
+page-op undo
+page-op select-odd
+page-op delete
+screenshot ../../artifacts/p2-13-large-odd-deleted.png
+page-op undo
+save-as ../../artifacts/p2-large-copy.pdf
+exit

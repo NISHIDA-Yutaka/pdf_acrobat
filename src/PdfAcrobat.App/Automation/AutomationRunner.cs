@@ -4,12 +4,16 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Input;
 using System.Windows.Threading;
+using PdfAcrobat.App.Controls.PageGrid;
 using PdfAcrobat.App.Controls.Viewer;
 using PdfAcrobat.App.Services;
 using PdfAcrobat.App.ViewModels;
 using PdfAcrobat.App.Views;
 using PdfAcrobat.App.Views.Dialogs;
+using PdfAcrobat.Core.Documents;
+using PdfAcrobat.Core.Import;
 
 namespace PdfAcrobat.App.Automation;
 
@@ -116,7 +120,7 @@ public sealed class AutomationRunner(MainWindow window, MainViewModel viewModel)
                 await WaitIdleAsync();
                 break;
             case "close-tab":
-                viewModel.CloseTab(viewModel.SelectedTab);
+                await viewModel.CloseTab(viewModel.SelectedTab);
                 await WaitIdleAsync();
                 break;
             case "page":
@@ -204,7 +208,7 @@ public sealed class AutomationRunner(MainWindow window, MainViewModel viewModel)
                 Log($"saved {Resolve(args[0])}");
                 break;
             case "dialog-screenshot":
-                await DialogScreenshotAsync(args[0], Resolve(args[1]));
+                await DialogScreenshotAsync(args[0], Resolve(args[1]), args.Skip(2).Select(Resolve).ToList());
                 break;
             case "log":
                 Log(string.Join(' ', args));
@@ -249,8 +253,186 @@ public sealed class AutomationRunner(MainWindow window, MainViewModel viewModel)
                 var doc = viewModel.ActiveDocument;
                 Log(doc is null
                     ? $"tab: {viewModel.SelectedTab?.Title}"
-                    : $"page {doc.CurrentPageNumber}/{doc.PageCount}, zoom {doc.ZoomText} ({doc.ZoomMode}), layout {doc.LayoutMode}, rotation {doc.ViewRotation}, panel {doc.ActivePanel}");
+                    : $"page {doc.CurrentPageNumber}/{doc.PageCount}, zoom {doc.ZoomText} ({doc.ZoomMode}), layout {doc.LayoutMode}, rotation {doc.ViewRotation}, panel {doc.ActivePanel}, title {doc.Title}");
                 break;
+
+            // ---- Phase 2: page organization, saving, combining, creating ----
+            case "organize":
+                Document.IsOrganizeMode = args[0] != "off";
+                await WaitIdleAsync();
+                if (Document.IsOrganizeMode)
+                {
+                    Log(ActiveGrid.Describe());
+                }
+
+                break;
+            case "grid-size":
+                Document.OrganizeTileWidth = double.Parse(args[0], CultureInfo.InvariantCulture);
+                await WaitIdleAsync();
+                Log(ActiveGrid.Describe());
+                break;
+            case "select-pages":
+                Document.SelectedPages = args.Length == 0 ? [] : PageRangeParser.TryParse(string.Join(' ', args), Document.PageCount, out var selection)
+                    ? selection.Distinct().Order().ToList()
+                    : throw new InvalidOperationException($"ページ範囲が不正です: {string.Join(' ', args)}");
+                await WaitIdleAsync();
+                break;
+            case "page-op":
+                await ExecutePageOperationAsync(args[0]);
+                await WaitIdleAsync();
+                LogPages();
+                break;
+            case "move-pages":
+                Document.MovePages(Document.SelectedPages, int.Parse(args[0], CultureInfo.InvariantCulture) - 1);
+                await WaitIdleAsync();
+                LogPages();
+                break;
+            case "insert-file":
+                await Document.InsertFilesAsync(int.Parse(args[1], CultureInfo.InvariantCulture) - 1, [Resolve(args[0])]);
+                await WaitIdleAsync();
+                LogPages();
+                break;
+            case "pages":
+                LogPages();
+                break;
+            case "grid-click":
+            {
+                var grid = ActiveGrid;
+                var center = grid.TileCenter(int.Parse(args[0], CultureInfo.InvariantCulture) - 1);
+                var modifiers = (args.Contains("ctrl") ? ModifierKeys.Control : ModifierKeys.None) | (args.Contains("shift") ? ModifierKeys.Shift : ModifierKeys.None);
+                grid.HandlePress(center, modifiers, args.Contains("double") ? 2 : 1);
+                grid.HandleRelease(center, cancel: false);
+                await WaitIdleAsync();
+                Log($"after grid-click: organize={Document.IsOrganizeMode}, page {Document.CurrentPageNumber}, {grid.Describe()}");
+                break;
+            }
+
+            case "grid-drag":
+            {
+                // grid-drag <page> <insert before page>: drags the selection (or the page) with the real pointer logic.
+                var grid = ActiveGrid;
+                var from = grid.TileCenter(int.Parse(args[0], CultureInfo.InvariantCulture) - 1);
+                var to = grid.GapPoint(int.Parse(args[1], CultureInfo.InvariantCulture) - 1);
+                grid.HandlePress(from, ModifierKeys.None, 1);
+                for (var step = 1; step <= 12; step++)
+                {
+                    var p = from + (to - from) * (step / 12.0);
+                    grid.HandleMove(p, grid.CanvasToViewport(p));
+                    if (step == 8 && args.Contains("screenshot-midway"))
+                    {
+                        await WaitIdleAsync();
+                        SaveScreenshot(window, Resolve(args[^1]));
+                    }
+                }
+
+                grid.HandleRelease(to, cancel: false);
+                await WaitIdleAsync();
+                LogPages();
+                break;
+            }
+
+            case "save-as":
+                Log($"save-as {Resolve(args[0])}: {(await Document.SaveToAsync(Resolve(args[0])) ? "ok" : "failed")}, title {Document.Title}");
+                break;
+            case "extract":
+                PageRangeParser.TryParse(args[0], Document.PageCount, out var extractPages);
+                await Document.ExtractAsync(extractPages, deleteAfter: false, args.Length > 1 ? Resolve(args[1]) : null);
+                await WaitIdleAsync();
+                break;
+            case "split":
+            {
+                // split <pages|files|ranges|bookmarks> <value> <folder> <base name>
+                var mode = args[0] switch
+                {
+                    "files" => SplitMode.FileCount,
+                    "ranges" => SplitMode.Ranges,
+                    "bookmarks" => SplitMode.TopLevelBookmarks,
+                    _ => SplitMode.PageCount,
+                };
+                PageRangeParser.TryParseGroups(args[1], Document.PageCount, out var groups);
+                var options = new SplitOptions(mode, mode == SplitMode.Ranges ? groups.Count : int.TryParse(args[1], out var value) ? value : 0, Resolve(args[2]), args[3]) { Ranges = groups };
+                Log($"split: {await Document.SplitAsync(options)} files");
+                break;
+            }
+
+            case "combine":
+            {
+                var combined = await viewModel.CombineFilesAsync(args.Skip(1).Select(Resolve).ToList(), args[0] == "bookmarks");
+                Log(combined is null ? "combine failed" : $"combined: {combined.Title}, {combined.PageCount} pages, {combined.Bookmarks.Count} bookmarks");
+                await WaitIdleAsync();
+                break;
+            }
+
+            case "create-blank":
+            {
+                var paper = PaperSize.Common[int.Parse(args[0], CultureInfo.InvariantCulture)];
+                var created = viewModel.CreateBlankDocument(paper.ToPoints(args.Contains("landscape")), int.Parse(args[1], CultureInfo.InvariantCulture));
+                Log($"created: {created.Title}, {created.PageCount} pages ({paper.Name})");
+                await WaitIdleAsync();
+                break;
+            }
+
+            case "create-images":
+            {
+                var created = await viewModel.CreateFromImageFilesAsync(args.Select(Resolve).ToList());
+                Log(created is null ? "create failed" : $"created: {created.Title}, {created.PageCount} pages");
+                await WaitIdleAsync();
+                break;
+            }
+
+            case "grid-hover":
+            {
+                // grid-hover <page>: hover actions of a page; grid-hover gap <before page>: the "+" insert button.
+                var grid = ActiveGrid;
+                if (args[0] == "gap")
+                {
+                    var point = grid.GapPoint(int.Parse(args[1], CultureInfo.InvariantCulture) - 1);
+                    grid.HandleMove(point, grid.CanvasToViewport(point));
+                }
+                else
+                {
+                    var index = int.Parse(args[0], CultureInfo.InvariantCulture) - 1;
+                    var tile = FindVisualChildren<PageTile>(grid).First(t => t.Index == index);
+                    tile.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent });
+                }
+
+                await WaitIdleAsync();
+                break;
+            }
+
+            case "grid-menu":
+            {
+                // grid-menu <page|0 for the empty area> OUT.png
+                var menu = ActiveGrid.ShowContextMenu(Document, int.Parse(args[0], CultureInfo.InvariantCulture) - 1);
+                await WaitIdleAsync();
+                SaveElementScreenshot(menu, Resolve(args[1]));
+                menu.IsOpen = false;
+                Log($"saved {Resolve(args[1])}");
+                break;
+            }
+
+            case "autosave-now":
+                await AppServices.AutoSave.SaveNowAsync();
+                Log($"auto-save folder: {string.Join(", ", Directory.Exists(AppServices.AutoSave.Folder) ? Directory.GetFiles(AppServices.AutoSave.Folder).Select(Path.GetFileName) : [])}");
+                break;
+            case "recover":
+                Log($"recovered {viewModel.RecoverDocuments(ask: false)} documents");
+                await WaitIdleAsync();
+                break;
+            case "crash":
+                // Simulates a crash: the process ends without any clean-up.
+                Log("killing the process");
+                _log?.Flush();
+                System.Diagnostics.Process.GetCurrentProcess().Kill();
+                break;
+            case "create-text":
+            {
+                var bytes = TextPdfConverter.Convert(await File.ReadAllTextAsync(Resolve(args[0])));
+                var created = viewModel.AddDocument(DocumentSession.CreateUnsaved("テキスト.pdf", [PdfSource.Load(bytes, "テキスト.pdf")]));
+                Log($"created: {created.Title}, {created.PageCount} pages");
+                await WaitIdleAsync();
+                break;
+            }
             default:
                 throw new InvalidOperationException($"不明なコマンド: {command}");
         }
@@ -258,13 +440,74 @@ public sealed class AutomationRunner(MainWindow window, MainViewModel viewModel)
         return true;
     }
 
-    private async Task DialogScreenshotAsync(string kind, string path)
+    private async Task ExecutePageOperationAsync(string operation)
+    {
+        var document = Document;
+        switch (operation)
+        {
+            case "rotate-left":
+                document.RotateLeftCommand.Execute(null);
+                break;
+            case "rotate-right":
+                document.RotateRightCommand.Execute(null);
+                break;
+            case "delete":
+                document.DeleteSelectedPagesCommand.Execute(null);
+                break;
+            case "duplicate":
+                document.DuplicateSelectedPagesCommand.Execute(null);
+                break;
+            case "insert-blank":
+                document.InsertBlankPageCommand.Execute(null);
+                break;
+            case "undo":
+                document.UndoCommand.Execute(null);
+                break;
+            case "redo":
+                document.RedoCommand.Execute(null);
+                break;
+            case "select-odd":
+                document.SelectPagesCommand.Execute("odd");
+                break;
+            case "select-all":
+                document.SelectPagesCommand.Execute("all");
+                break;
+            default:
+                throw new InvalidOperationException($"不明なページ操作: {operation}");
+        }
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>Logs the page order as source tags ("P3" = page 3 of the original file, "S1p2" = page 2 of the first inserted file).</summary>
+    private void LogPages()
+    {
+        var document = Document;
+        var tags = document.Session.Sources
+            .Select((s, k) => (s.Id, Tag: s.Id == document.Session.PrimarySource.Id ? "P" : $"S{k}p"))
+            .ToDictionary(x => x.Id, x => x.Tag);
+        var pages = document.Session.Pages.Select(p =>
+            (p.IsBlank ? "blank" : $"{tags[p.SourceId!.Value]}{p.SourceIndex + 1}") + (p.Rotation != 0 ? $"@{p.Rotation * 90}" : string.Empty));
+        Log($"pages ({document.PageCount}): {string.Join(' ', pages)} | selected [{PageRangeParser.Format(document.SelectedPages)}] | current {document.CurrentPageNumber}"
+            + $" | modified={document.Session.IsModified} | undo={document.Session.UndoDescription ?? "-"} | redo={document.Session.RedoDescription ?? "-"}");
+    }
+
+    private PageGridView ActiveGrid =>
+        FindVisualChildren<DocumentView>(window).FirstOrDefault(v => v.IsVisible)?.PageGridView
+        ?? throw new InvalidOperationException("ページグリッドが見つかりません。");
+
+    private async Task DialogScreenshotAsync(string kind, string path, IReadOnlyList<string> files)
     {
         Window dialog = kind switch
         {
             "properties" => new DocumentPropertiesDialog(Document),
             "print" => new PrintDialogWindow(Document),
             "password" => new PasswordDialog("sample.pdf", retry: true),
+            "extract" => new ExtractPagesDialog(Document),
+            "split" => new SplitDialog(Document),
+            "replace" => new ReplacePagesDialog(Document, Document.Session.PrimarySource),
+            "create" => new CreatePdfWindow(viewModel),
+            "combine" => new CombineFilesWindow(viewModel, files),
             _ => throw new InvalidOperationException($"不明なダイアログ: {kind}"),
         };
         dialog.Owner = window;
@@ -292,12 +535,15 @@ public sealed class AutomationRunner(MainWindow window, MainViewModel viewModel)
 
     private static void SaveScreenshot(Window target, string path)
     {
-        if (target.Content is not FrameworkElement content)
+        if (target.Content is FrameworkElement content)
         {
-            return;
+            SaveElementScreenshot(content, path, target.Background);
         }
+    }
 
-        var dpi = VisualTreeHelper.GetDpi(target);
+    private static void SaveElementScreenshot(FrameworkElement content, string path, Brush? background = null)
+    {
+        var dpi = VisualTreeHelper.GetDpi(content);
         var width = content.ActualWidth;
         var height = content.ActualHeight;
         var bitmap = new RenderTargetBitmap(
@@ -310,7 +556,7 @@ public sealed class AutomationRunner(MainWindow window, MainViewModel viewModel)
         using (var dc = visual.RenderOpen())
         {
             var rect = new Rect(0, 0, width, height);
-            dc.DrawRectangle(target.Background ?? Brushes.White, null, rect);
+            dc.DrawRectangle(background ?? Brushes.White, null, rect);
             dc.DrawRectangle(new VisualBrush(content), null, rect);
         }
 

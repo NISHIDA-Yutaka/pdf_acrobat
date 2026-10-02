@@ -489,3 +489,7 @@ artifacts/
 
 # UI automation logs
 tests/ui/*.log
+
+# Published builds
+dist/
+publish/

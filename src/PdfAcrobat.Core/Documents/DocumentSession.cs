@@ -21,6 +21,7 @@ public sealed class DocumentSession : IDisposable
 {
     private const int MaxHistory = 200;
 
+    // Read by background exports (saving, auto-save) while the UI may add sources: guarded by itself.
     private readonly Dictionary<Guid, PdfSource> _sources = new();
     private readonly List<(DocumentState State, string Description)> _undo = new();
     private readonly List<(DocumentState State, string Description)> _redo = new();
@@ -75,7 +76,17 @@ public sealed class DocumentSession : IDisposable
 
     public PdfSource PrimarySource { get; }
 
-    public IReadOnlyDictionary<Guid, PdfSource> Sources => _sources;
+    /// <summary>Snapshot of the sources, in the order they were added.</summary>
+    public IReadOnlyList<PdfSource> Sources
+    {
+        get
+        {
+            lock (_sources)
+            {
+                return _sources.Values.ToList();
+            }
+        }
+    }
 
     public DocumentState State { get; private set; }
 
@@ -95,16 +106,28 @@ public sealed class DocumentSession : IDisposable
 
     public string? RedoDescription => _redo.Count > 0 ? _redo[^1].Description : null;
 
-    public void AddSource(PdfSource source) => _sources.TryAdd(source.Id, source);
+    public void AddSource(PdfSource source)
+    {
+        lock (_sources)
+        {
+            _sources.TryAdd(source.Id, source);
+        }
+    }
 
-    public PdfSource GetSource(Guid id) => _sources[id];
+    public PdfSource GetSource(Guid id)
+    {
+        lock (_sources)
+        {
+            return _sources[id];
+        }
+    }
 
     /// <summary>Displayed size (points) of a page including its extra rotation.</summary>
     public PdfSize GetPageSize(PageRef page)
     {
         var size = page.IsBlank
             ? page.BlankSize ?? new PdfSize(595, 842)
-            : _sources[page.SourceId!.Value].PageSizes[page.SourceIndex];
+            : GetSource(page.SourceId!.Value).PageSizes[page.SourceIndex];
         return page.Rotation % 2 == 0 ? size : new PdfSize(size.Height, size.Width);
     }
 
@@ -170,11 +193,14 @@ public sealed class DocumentSession : IDisposable
 
     public void Dispose()
     {
-        foreach (var source in _sources.Values)
+        foreach (var source in Sources)
         {
             source.Dispose();
         }
 
-        _sources.Clear();
+        lock (_sources)
+        {
+            _sources.Clear();
+        }
     }
 }

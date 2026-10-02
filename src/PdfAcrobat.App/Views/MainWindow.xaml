@@ -18,6 +18,14 @@
                  AllowDrop="True">
     <Window.InputBindings>
         <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}" />
+        <KeyBinding Gesture="Ctrl+N" Command="{Binding NewBlankDocumentCommand}" />
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding ActiveDocument.SaveCommand}" />
+        <KeyBinding Gesture="Ctrl+Z" Command="{Binding ActiveDocument.UndoCommand}" />
+        <KeyBinding Gesture="Ctrl+Y" Command="{Binding ActiveDocument.RedoCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding ActiveDocument.RedoCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+D" Command="{Binding ActiveDocument.DeleteSelectedPagesCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+I" Command="{Binding ActiveDocument.InsertFromFileCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding ActiveDocument.RotateRightCommand}" />
         <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseActiveTabCommand}" />
         <KeyBinding Gesture="Ctrl+F4" Command="{Binding CloseActiveTabCommand}" />
         <KeyBinding Gesture="Ctrl+Tab" Command="{Binding NextTabCommand}" />

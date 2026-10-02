@@ -8,6 +8,7 @@
     <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
     <conv:BoolToVisibilityConverter x:Key="InverseBoolToVisibility" Invert="True" />
     <conv:BoolToVisibilityConverter x:Key="BoolToVisibleHidden" UseHidden="True" />
+    <conv:BoolToVisibilityConverter x:Key="InverseBoolToHidden" Invert="True" UseHidden="True" />
     <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
     <conv:NullToVisibilityConverter x:Key="NullToCollapsed" Invert="True" />
     <conv:InverseBoolConverter x:Key="InverseBool" />
@@ -86,6 +87,17 @@
         <Setter Property="FontSize" Value="13" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Focusable" Value="False" />
+    </Style>
+
+    <Style x:Key="TextToolToggleButtonStyle" TargetType="ToggleButton">
+        <Setter Property="Template" Value="{StaticResource ToolButtonTemplate}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="400" />
     </Style>
 
     <Style x:Key="PrimaryButtonStyle" TargetType="Button">

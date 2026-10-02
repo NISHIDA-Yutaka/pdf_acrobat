@@ -61,6 +61,8 @@ public sealed partial class PdfViewer : UserControl
     private Dictionary<int, List<SearchHit>> _hitsByPage = new();
     private bool _syncingCurrentPage;
     private bool _settingZoom;
+    private bool _scrolling;
+    private bool _resizedWhileScrolling;
     private double _dpi = 1.0;
 
     public PdfViewer()
@@ -286,6 +288,12 @@ public sealed partial class PdfViewer : UserControl
     {
         if (!IsLoaded)
         {
+            return;
+        }
+
+        if (_scrolling)
+        {
+            _resizedWhileScrolling = true;
             return;
         }
 
@@ -569,7 +577,24 @@ public sealed partial class PdfViewer : UserControl
         y = Math.Round(Math.Clamp(y, 0, maxY) * _dpi) / _dpi;
         _scroll.ScrollToHorizontalOffset(x);
         _scroll.ScrollToVerticalOffset(y);
-        _scroll.UpdateLayout();
+
+        // The ScrollViewer applies the offsets at the end of the layout pass. A size change raised
+        // inside that pass would still see the old offsets, so it is handled once they are applied.
+        _scrolling = true;
+        try
+        {
+            _scroll.UpdateLayout();
+        }
+        finally
+        {
+            _scrolling = false;
+        }
+
+        if (_resizedWhileScrolling)
+        {
+            _resizedWhileScrolling = false;
+            OnViewportSizeChanged();
+        }
     }
 
     private Rect Snap(Rect r) => new(
