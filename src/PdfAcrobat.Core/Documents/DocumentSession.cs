@@ -24,18 +24,51 @@ public sealed class DocumentSession : IDisposable
     private readonly Dictionary<Guid, PdfSource> _sources = new();
     private readonly List<(DocumentState State, string Description)> _undo = new();
     private readonly List<(DocumentState State, string Description)> _redo = new();
-    private DocumentState _savedState;
+    private DocumentState? _savedState;
 
     public DocumentSession(PdfSource primary)
+        : this([primary], primary.Name, primary.FilePath, isNew: false)
     {
-        PrimarySource = primary;
-        _sources.Add(primary.Id, primary);
-        FilePath = primary.FilePath;
-        DisplayName = primary.Name;
-        State = new DocumentState(Enumerable.Range(0, primary.PageCount)
-            .Select(i => PageRef.FromSource(primary.Id, i))
+    }
+
+    private DocumentSession(IReadOnlyList<PdfSource> sources, string displayName, string? filePath, bool isNew)
+    {
+        PrimarySource = sources[0];
+        foreach (var source in sources)
+        {
+            _sources.Add(source.Id, source);
+        }
+
+        FilePath = filePath;
+        DisplayName = displayName;
+        State = new DocumentState(sources
+            .SelectMany(s => Enumerable.Range(0, s.PageCount).Select(i => PageRef.FromSource(s.Id, i)))
             .ToImmutableList());
-        _savedState = State;
+        // A new (never saved) document counts as modified until it is saved.
+        _savedState = isNew ? null : State;
+    }
+
+    /// <summary>Creates an unsaved document made of all pages of the given sources, in order.</summary>
+    public static DocumentSession CreateUnsaved(string displayName, IReadOnlyList<PdfSource> sources)
+    {
+        if (sources.Count == 0)
+        {
+            throw new ArgumentException("少なくとも 1 つのファイルが必要です。", nameof(sources));
+        }
+
+        return new DocumentSession(sources, displayName, null, isNew: true);
+    }
+
+    /// <summary>A one-page PDF with a blank page of the given size (points).</summary>
+    public static PdfSource CreateBlankSource(string name, PdfSize size, int pageCount = 1)
+    {
+        using var document = PdfDocument.CreateNew();
+        for (var i = 0; i < pageCount; i++)
+        {
+            document.InsertBlankPage(i, size.Width, size.Height);
+        }
+
+        return PdfSource.Load(document.Save(), name);
     }
 
     public event EventHandler<DocumentChangedEventArgs>? Changed;

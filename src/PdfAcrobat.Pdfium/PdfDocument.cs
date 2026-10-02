@@ -476,6 +476,37 @@ public sealed unsafe class PdfDocument : IDisposable
         PdfiumNative.FPDF_ClosePage(page);
     }
 
+    /// <summary>Current /Rotate of a page in quarter turns (0-3).</summary>
+    public int GetPageRotation(int pageIndex)
+    {
+        using var _ = PdfiumLibrary.Acquire();
+        if (_pages.TryGetValue(pageIndex, out var cached) && cached.Page != 0)
+        {
+            return ((PdfiumNative.FPDFPage_GetRotation(cached.Page) % 4) + 4) % 4;
+        }
+
+        var page = PdfiumNative.FPDF_LoadPage(Handle, pageIndex);
+        if (page == 0)
+        {
+            throw new PdfiumException(PdfiumErrorCode.Page, $"ページ {pageIndex + 1} を読み込めませんでした。");
+        }
+
+        var rotation = PdfiumNative.FPDFPage_GetRotation(page);
+        PdfiumNative.FPDF_ClosePage(page);
+        return ((rotation % 4) + 4) % 4;
+    }
+
+    /// <summary>Adds <paramref name="quarterTurns"/> to the page's /Rotate.</summary>
+    public void RotatePage(int pageIndex, int quarterTurns)
+    {
+        if (quarterTurns % 4 == 0)
+        {
+            return;
+        }
+
+        SetPageRotation(pageIndex, GetPageRotation(pageIndex) + quarterTurns);
+    }
+
     public bool CopyViewerPreferences(PdfDocument source)
     {
         using var _ = PdfiumLibrary.Acquire();

@@ -23,7 +23,9 @@ public static class PageRangeParser
             .Replace('，', ',')
             .Replace('～', '-')
             .Replace('〜', '-')
-            .Replace('–', '-');
+            .Replace('–', '-')
+            .Replace('~', '-')
+            .Replace('ー', '-');
         foreach (var rawPart in normalized.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries))
         {
             var part = rawPart.Trim();
